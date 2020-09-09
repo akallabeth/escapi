@@ -10,3 +10,11 @@ add_library(escapi SHARED
       	scopedrelease.h
       	videobufferlock.h
 	)
+
+find_library(MF Mf REQUIRED)
+find_library(MFPLAT Mfplat REQUIRED)
+find_library(MFREADWRITE Mfreadwrite REQUIRED)
+find_library(SHLWAPI shlwapi REQUIRED)
+target_link_libraries(escapi ${MF} ${MFPLAT} ${MFREADWRITE} ${SHLWAPI})
+
+install(TARGETS escapi)
