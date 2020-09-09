@@ -1,3 +1,5 @@
+#include <initguid.h>
+#include <cguid.h>
 #include <mfapi.h>
 #include "conversion.h"
 
