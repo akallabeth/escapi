@@ -4,6 +4,7 @@ add_library(escapi SHARED
       	conversion.cpp
       	escapi_dll.cpp
   	interface.cpp
+        interface.h
     	videobufferlock.cpp
 	capture.h
  	conversion.h

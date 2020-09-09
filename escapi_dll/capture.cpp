@@ -30,23 +30,29 @@ extern int gOptions[];
 CaptureClass::CaptureClass()
 {
 	mRefCount = 1;
-	mReader = 0;
 	InitializeCriticalSection(&mCritsec);
-	mCaptureBuffer = 0;
+    mReader = nullptr;
+    mSource = nullptr;
+    mDefaultStride = 0;
+    mConvertFn = nullptr;
+    mCaptureBuffer = nullptr;
 	mCaptureBufferWidth = 0;
 	mCaptureBufferHeight = 0;
 	mErrorLine = 0;
-	mErrorCode = 0;
-	mBadIndices = 0;
-	mMaxBadIndices = 16;
-	mBadIndex = new unsigned int[mMaxBadIndices];
+    mErrorCode = 0;
+    mBadIndices = 0;
+    mMaxBadIndices = 16;
+    mBadIndex.reserve(mMaxBadIndices);
+    mUsedIndex = 0;
 	mRedoFromStart = 0;
+    gDoCapture = 0;
+    gOptions = 0;
 }
 
 CaptureClass::~CaptureClass()
 {
+    deinitCapture();
 	DeleteCriticalSection(&mCritsec);
-	delete[] mBadIndex;
 }
 
 // IUnknown methods
@@ -55,7 +61,7 @@ STDMETHODIMP CaptureClass::QueryInterface(REFIID aRiid, void** aPpv)
 	static const QITAB qit[] =
 	{
 		QITABENT(CaptureClass, IMFSourceReaderCallback),
-		{ 0 },
+        { },
 	};
 	return QISearch(this, qit, aRiid, aPpv);
 }
@@ -95,12 +101,9 @@ STDMETHODIMP CaptureClass::OnReadSample(
 		// we fix by marking the resolution bad and retrying, which should use the next best match.
 		mRedoFromStart = 1;
 		if (mBadIndices == mMaxBadIndices)
-		{
-			unsigned int *t = new unsigned int[mMaxBadIndices * 2];
-			memcpy(t, mBadIndex, mMaxBadIndices * sizeof(unsigned int));
-			delete[] mBadIndex;
-			mBadIndex = t;
+		{			
 			mMaxBadIndices *= 2;
+            mBadIndex.reserve(mMaxBadIndices);
 		}
 		mBadIndex[mBadIndices] = mUsedIndex;
 		mBadIndices++;
@@ -111,7 +114,7 @@ STDMETHODIMP CaptureClass::OnReadSample(
 
 	if (SUCCEEDED(aStatus))
 	{
-		if (gDoCapture[mWhoAmI] == -1)
+        if (gDoCapture == -1)
 		{
 			if (aSample)
 			{
@@ -146,7 +149,7 @@ STDMETHODIMP CaptureClass::OnReadSample(
 				else
 				{
 					// No convert function?
-					if (gOptions[mWhoAmI] & CAPTURE_OPTION_RAWDATA)
+                    if (gOptions & CAPTURE_OPTION_RAWDATA)
 					{
 						// Ah ok, raw data was requested, so let's copy it then.
 
@@ -165,18 +168,18 @@ STDMETHODIMP CaptureClass::OnReadSample(
 				}
 
 				int i, j;
-				int *dst = (int*)gParams[mWhoAmI].mTargetBuf;
+                int *dst = (int*)gParams.mTargetBuf;
 				int *src = (int*)mCaptureBuffer;
-				for (i = 0; i < gParams[mWhoAmI].mHeight; i++)
+                for (i = 0; i < gParams.mHeight; i++)
 				{
-					for (j = 0; j < gParams[mWhoAmI].mWidth; j++, dst++)
+                    for (j = 0; j < gParams.mWidth; j++, dst++)
 					{
 						*dst = src[
-							(i * mCaptureBufferHeight / gParams[mWhoAmI].mHeight) * mCaptureBufferWidth +
-								(j * mCaptureBufferWidth / gParams[mWhoAmI].mWidth)];
+                            (i * mCaptureBufferHeight / gParams.mHeight) * mCaptureBufferWidth +
+                                (j * mCaptureBufferWidth / gParams.mWidth)];
 					}
 				}
-				gDoCapture[mWhoAmI] = 1;
+                gDoCapture = 1;
 			}
 		}
 	}
@@ -406,7 +409,7 @@ HRESULT CaptureClass::setConversionFunction(REFGUID aSubtype)
 	mConvertFn = NULL;
 
 	// If raw data is desired, skip conversion
-	if (gOptions[mWhoAmI] & CAPTURE_OPTION_RAWDATA)
+    if (gOptions & CAPTURE_OPTION_RAWDATA)
 		return S_OK; 
 
 	for (DWORD i = 0; i < gConversionFormats; i++)
@@ -471,9 +474,9 @@ int CaptureClass::isMediaOk(IMFMediaType *aType, int aIndex)
 {
 	HRESULT hr = S_OK;
 
-	int i;
-	for (i = 0; i < (signed)mBadIndices; i++)
-		if (mBadIndex[i] == aIndex)
+    unsigned int i;
+    for (i = 0; i < mBadIndices; i++)
+        if (mBadIndex.at(i) == aIndex)
 			return FALSE;
 
 	BOOL found = FALSE;
@@ -582,9 +585,8 @@ int CaptureClass::scanMediaTypes(unsigned int aWidth, unsigned int aHeight)
 	return bestfit;
 }
 
-HRESULT CaptureClass::initCapture(int aDevice)
+HRESULT CaptureClass::initCapture(size_t aDevice, const struct SimpleCapParams *aParams, unsigned int aOptions)
 {
-	mWhoAmI = aDevice;
 	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 
 	DO_OR_DIE;
@@ -607,12 +609,12 @@ HRESULT CaptureClass::initCapture(int aDevice)
 
 	DO_OR_DIE;
 
-	ChooseDeviceParam param = { 0 };
+    ChooseDeviceParam param = { };
 	hr = MFEnumDeviceSources(attributes, &param.mDevices, &param.mCount);
 
 	DO_OR_DIE;
 
-	if ((signed)param.mCount > aDevice)
+    if (param.mCount > aDevice)
 	{
 		// use param.ppDevices[0]
 		IMFAttributes   *attributes = NULL;
@@ -650,7 +652,7 @@ HRESULT CaptureClass::initCapture(int aDevice)
 
 		DO_OR_DIE_CRITSECTION;
 
-		int preferredmode = scanMediaTypes(gParams[mWhoAmI].mWidth, gParams[mWhoAmI].mHeight);
+        int preferredmode = scanMediaTypes(gParams.mWidth, gParams.mHeight);
 		mUsedIndex = preferredmode;
 
 		hr = mReader->GetNativeMediaType(
@@ -704,6 +706,8 @@ HRESULT CaptureClass::initCapture(int aDevice)
 	}
 	*/
 
+    gParams = *aParams;
+    gOptions = aOptions;
 	return 0;
 }
 
@@ -711,12 +715,20 @@ void CaptureClass::deinitCapture()
 {
 	EnterCriticalSection(&mCritsec);
 
-	mReader->Release();
+    if (mReader)
+    {
+        mReader->Release();
+        mReader = nullptr;
+    }
 
-	mSource->Shutdown();
-	mSource->Release();
-
+    if (mSource)
+    {
+        mSource->Shutdown();
+        mSource->Release();
+        mSource = nullptr;
+    }
 	delete[] mCaptureBuffer;
+    mCaptureBuffer = nullptr;
 
 	LeaveCriticalSection(&mCritsec);
 }

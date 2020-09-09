@@ -7,78 +7,90 @@
 #define ESCAPI_DEFINITIONS_ONLY
 #include "escapi.h"
 
+#include "interface.h"
 #include "conversion.h"
 #include "capture.h"
 #include "scopedrelease.h"
 #include "choosedeviceparam.h"
 
-#define MAXDEVICES 16
+#include <vector>
 
-struct SimpleCapParams gParams[MAXDEVICES];
-CaptureClass *gDevice[MAXDEVICES] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-int gDoCapture[MAXDEVICES];
-int gOptions[MAXDEVICES];
+std::vector<CaptureClass> EscAPI::sDeviceList;
 
-
-void CleanupDevice(int aDevice)
+void EscAPI::DoCapture(size_t deviceno)
 {
-	if (gDevice[aDevice])
+    if (CheckForFail(deviceno))
+        getDevice(deviceno).gDoCapture = -1;
+}
+
+int EscAPI::IsCaptureDone(size_t deviceno)
+{
+    if (!CheckForFail(deviceno))
+        return 0;
+
+    if (getDevice(deviceno).gDoCapture == 1)
+        return 1;
+    return 0;
+}
+
+void EscAPI::CleanupDevice(size_t aDevice)
+{
+    if (aDevice < sDeviceList.size())
 	{
-		gDevice[aDevice]->deinitCapture();
-		delete gDevice[aDevice];
-		gDevice[aDevice] = 0;
+        sDeviceList.erase(sDeviceList.begin() + aDevice);
 	}
 }
-HRESULT InitDevice(int aDevice)
+HRESULT EscAPI::InitDevice(size_t aDevice, const struct SimpleCapParams *aParams, unsigned int aOptions)
 {
-	if (gDevice[aDevice])
-	{
-		CleanupDevice(aDevice);
-	}
-	gDevice[aDevice] = new CaptureClass;
-	HRESULT hr = gDevice[aDevice]->initCapture(aDevice);
+    CleanupDevice(aDevice);
+
+    sDeviceList.push_back(CaptureClass());
+    HRESULT hr = getDevice(aDevice).initCapture(aDevice, aParams, aOptions);
 	if (FAILED(hr))
-	{
-		delete gDevice[aDevice];
-		gDevice[aDevice] = 0;
-	}
+        CleanupDevice(aDevice);
+
 	return hr;
 }
 
 
 
-int CountCaptureDevices()
+size_t EscAPI::CountCaptureDevices()
 {
 	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 
-	if (FAILED(hr)) return 0;
+    if (FAILED(hr))
+        return 0;
 
 	hr = MFStartup(MF_VERSION);
 
-	if (FAILED(hr)) return 0;
+    if (FAILED(hr))
+        return 0;
 
 	// choose device
 	IMFAttributes *attributes = NULL;
 	hr = MFCreateAttributes(&attributes, 1);
 	ScopedRelease<IMFAttributes> attributes_s(attributes);
 
-	if (FAILED(hr)) return 0;
+    if (FAILED(hr))
+        return 0;
 
 	hr = attributes->SetGUID(
 		MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
 		MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID
 		);
-	if (FAILED(hr)) return 0;
+    if (FAILED(hr))
+        return 0;
 
-	ChooseDeviceParam param = { 0 };
+    ChooseDeviceParam param = { };
 	hr = MFEnumDeviceSources(attributes, &param.mDevices, &param.mCount);
 
-	if (FAILED(hr)) return 0;
+    if (FAILED(hr))
+        return 0;
 
 	return param.mCount;
 }
 
-void GetCaptureDeviceName(int aDevice, char * aNamebuffer, int aBufferlength)
+void EscAPI::GetCaptureDeviceName(size_t aDevice, char * aNamebuffer, int aBufferlength)
 {
 	int i;
 	if (!aNamebuffer || aBufferlength <= 0)
@@ -88,32 +100,37 @@ void GetCaptureDeviceName(int aDevice, char * aNamebuffer, int aBufferlength)
 
 	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 
-	if (FAILED(hr)) return;
+    if (FAILED(hr))
+        return;
 
 	hr = MFStartup(MF_VERSION);
 
-	if (FAILED(hr)) return;
+    if (FAILED(hr))
+        return;
 
 	// choose device
 	IMFAttributes *attributes = NULL;
 	hr = MFCreateAttributes(&attributes, 1);
 	ScopedRelease<IMFAttributes> attributes_s(attributes);
 
-	if (FAILED(hr)) return;
+    if (FAILED(hr))
+        return;
 
 	hr = attributes->SetGUID(
 		MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
 		MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID
 		);
 
-	if (FAILED(hr)) return;
+    if (FAILED(hr))
+        return;
 
-	ChooseDeviceParam param = { 0 };
+    ChooseDeviceParam param = { };
 	hr = MFEnumDeviceSources(attributes, &param.mDevices, &param.mCount);
 
-	if (FAILED(hr)) return;
+    if (FAILED(hr))
+        return;
 
-	if (aDevice < (signed)param.mCount)
+    if (aDevice < param.mCount)
 	{
 		WCHAR *name = 0;
 		UINT32 namelen = 255;
@@ -137,66 +154,72 @@ void GetCaptureDeviceName(int aDevice, char * aNamebuffer, int aBufferlength)
 	}
 }
 
-void CheckForFail(int aDevice)
+bool EscAPI::CheckForFail(size_t aDevice)
 {
-	if (!gDevice[aDevice])
-		return;
+    if (sDeviceList.size() <= aDevice)
+        return false;
 
-	if (gDevice[aDevice]->mRedoFromStart)
+    if (getDevice(aDevice).mRedoFromStart)
 	{
-		gDevice[aDevice]->mRedoFromStart = 0;
-		gDevice[aDevice]->deinitCapture();
-		HRESULT hr = gDevice[aDevice]->initCapture(aDevice);
+        CaptureClass& dev = getDevice(aDevice);
+        dev.mRedoFromStart = 0;
+        dev.deinitCapture();
+
+        HRESULT hr = dev.initCapture(aDevice, &dev.gParams, dev.gOptions);
 		if (FAILED(hr))
 		{
-			delete gDevice[aDevice];
-			gDevice[aDevice] = 0;
+            CleanupDevice(aDevice);
+            return false;
 		}
 	}
+
+    return true;
 }
 
 
-int GetErrorCode(int aDevice)
+int EscAPI::GetErrorCode(size_t aDevice)
 {
-	if (!gDevice[aDevice])
+    if (sDeviceList.size() <= aDevice)
 		return 0;
-	return gDevice[aDevice]->mErrorCode;
+    return getDevice(aDevice).mErrorCode;
 }
 
-int GetErrorLine(int aDevice)
+int EscAPI::GetErrorLine(size_t aDevice)
 {
-	if (!gDevice[aDevice])
+    if (sDeviceList.size() <= aDevice)
 		return 0;
-	return gDevice[aDevice]->mErrorLine;
+    return getDevice(aDevice).mErrorLine;
 }
 
 
-float GetProperty(int aDevice, int aProp)
+float EscAPI::GetProperty(size_t aDevice, int aProp)
 {
-	CheckForFail(aDevice);
-	if (!gDevice[aDevice])
+    if (!CheckForFail(aDevice))
 		return 0;
 	float val;
 	int autoval;
-	gDevice[aDevice]->getProperty(aProp, val, autoval);
+    getDevice(aDevice).getProperty(aProp, val, autoval);
 	return val;
 }
 
-int GetPropertyAuto(int aDevice, int aProp)
+int EscAPI::GetPropertyAuto(size_t aDevice, int aProp)
 {
-	CheckForFail(aDevice);
-	if (!gDevice[aDevice])
+    if (!CheckForFail(aDevice))
 		return 0;
 	float val;
 	int autoval;
-	gDevice[aDevice]->getProperty(aProp, val, autoval);
+    getDevice(aDevice).getProperty(aProp, val, autoval);
 	return autoval;
 }
 
-int SetProperty(int aDevice, int aProp, float aValue, int aAutoval)
+int EscAPI::SetProperty(size_t aDevice, int aProp, float aValue, int aAutoval)
 {
-	CheckForFail(aDevice);
-	if (!gDevice[aDevice])
+    if (!CheckForFail(aDevice))
 		return 0;
-	return gDevice[aDevice]->setProperty(aProp, aValue, aAutoval);
+    return getDevice(aDevice).setProperty(aProp, aValue, aAutoval);
+}
+
+CaptureClass &EscAPI::getDevice(size_t device)
+{
+    return sDeviceList.at(device);
 }

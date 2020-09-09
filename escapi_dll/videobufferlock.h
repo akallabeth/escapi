@@ -4,7 +4,8 @@ class VideoBufferLock
 {
 public:
 	VideoBufferLock(IMFMediaBuffer *aBuffer);
-	~VideoBufferLock();
+    virtual ~VideoBufferLock();
+
 	HRESULT LockBuffer(
 		LONG  aDefaultStride,    // Minimum stride (with no padding).
 		DWORD aHeightInPixels,  // Height of the image, in pixels.

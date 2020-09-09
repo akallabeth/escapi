@@ -8,7 +8,7 @@ public:
 	{
 		mVar = aVar;
 	}
-	~ScopedRelease()
+    virtual ~ScopedRelease()
 	{
 		if (mVar != 0)
 			mVar->Release();
