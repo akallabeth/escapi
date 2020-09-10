@@ -16,9 +16,10 @@
 
 #include <map>
 #include <memory>
+#include <random>
+#include <limits>
 
 std::map<size_t, std::unique_ptr<CaptureClass>> EscAPI::sDeviceList;
-size_t EscAPI::sDeviceCount = 23;
 hotplug_event_t EscAPI::sHotplugEvent = nullptr;
 void* EscAPI::sHotplugConext = nullptr;
 
@@ -184,11 +185,18 @@ bool EscAPI::update()
 		auto idx = contains(sDeviceList, *device);
 		if (idx < 0)
 		{
+			const size_t limit = MAXSSIZE_T;
+			std::default_random_engine generator;
+			std::uniform_int_distribution<size_t> distribution(1, limit);
+			size_t sDeviceCount;
+			do {
+				sDeviceCount = distribution(generator);
+			} while(sDeviceList.find(sDeviceCount) != sDeviceList.end());
+
 			sDeviceList.emplace(std::make_pair<size_t, std::unique_ptr<CaptureClass>>(
 			    std::move(sDeviceCount), std::move(device)));
 			added.push_back(sDeviceCount);
 			available.push_back(sDeviceCount);
-			sDeviceCount++;
 		}
 		else
 		{
@@ -302,7 +310,10 @@ bool EscAPI::getDevice(size_t device, CaptureClass** dev)
 
 	update();
 
-	*dev = sDeviceList.at(device).get();
+	auto it = sDeviceList.find(device);
+	if (it == sDeviceList.end())
+		return false;
+	*dev = it->second.get();
 	return true;
 }
 

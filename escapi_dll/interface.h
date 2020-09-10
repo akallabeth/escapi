@@ -38,7 +38,6 @@ class EscAPI
 	                        CaptureClass& device);
 
   private:
-	static size_t sDeviceCount;
 	static hotplug_event_t sHotplugEvent;
 	static void* sHotplugConext;
 	static std::map<size_t, std::unique_ptr<CaptureClass>> sDeviceList;
