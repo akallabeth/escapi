@@ -3,11 +3,14 @@
 #include <Windows.h>
 
 #include <map>
+#include <memory>
+#include <escapi.h>
 #include "capture.h"
 
 class EscAPI
 {
   public:
+	static void SetHotplugCallback(hotplug_event_t fkt, void* context);
 	static HRESULT InitDevice(size_t device, const struct SimpleCapParams* aParams,
 	                          unsigned int opts);
 
@@ -29,9 +32,14 @@ class EscAPI
 
   private:
 	static bool CheckForFail(size_t aDevice);
+	static bool update();
+	static bool getDevice(size_t id, CaptureClass** device);
+	static SSIZE_T contains(const std::map<size_t, std::unique_ptr<CaptureClass>>& map,
+	                        CaptureClass& device);
 
   private:
 	static size_t sDeviceCount;
-	static std::map<size_t, CaptureClass> sDeviceList;
-	static CaptureClass& getDevice(size_t device);
+	static hotplug_event_t sHotplugEvent;
+	static void* sHotplugConext;
+	static std::map<size_t, std::unique_ptr<CaptureClass>> sDeviceList;
 };

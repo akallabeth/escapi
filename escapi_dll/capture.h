@@ -7,8 +7,10 @@
 #include <mfreadwrite.h>
 #include <shlwapi.h>
 #include <vector>
+#include <string>
 
 #include "conversion.h"
+#include "choosedeviceparam.h"
 
 class CaptureClass : public IMFSourceReaderCallback
 {
@@ -24,7 +26,15 @@ class CaptureClass : public IMFSourceReaderCallback
 	};
 
   public:
-	CaptureClass(size_t index);
+	static bool getall(ChooseDeviceParam& param);
+
+  private:
+	static bool setup();
+
+  public:
+	CaptureClass(IMFActivate* device);
+	CaptureClass(const CaptureClass&) = delete;
+
 	virtual ~CaptureClass();
 
 	STDMETHODIMP QueryInterface(REFIID aRiid, void** aPpv);
@@ -51,8 +61,13 @@ class CaptureClass : public IMFSourceReaderCallback
 
 	void deinitCapture();
 
-	std::wstring name();
-	std::string cname();
+	std::wstring name() const;
+	std::string cname() const;
+
+  private:
+	static std::wstring updatename(IMFActivate* device);
+
+	IMFActivate* get(ChooseDeviceParam& param);
 
   public:
 	int mRedoFromStart;
@@ -63,7 +78,6 @@ class CaptureClass : public IMFSourceReaderCallback
 	struct SimpleCapParams gParams;
 
   private:
-	size_t deviceindex;
 	long mRefCount; // Reference count.
 	CRITICAL_SECTION mCritsec;
 
@@ -83,4 +97,5 @@ class CaptureClass : public IMFSourceReaderCallback
 
   private:
 	std::vector<resolution> resolutions;
+	std::wstring wcname;
 };

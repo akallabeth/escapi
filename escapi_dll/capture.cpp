@@ -16,11 +16,11 @@
 #define ESCAPI_DEFINITIONS_ONLY
 #include "escapi.h"
 
+#include "choosedeviceparam.h"
 #include "conversion.h"
 #include "capture.h"
 #include "scopedrelease.h"
 #include "videobufferlock.h"
-#include "choosedeviceparam.h"
 
 #define DO_OR_DIE                  \
 	{                              \
@@ -49,7 +49,7 @@
 		}                                    \
 	}
 
-CaptureClass::CaptureClass(size_t index) : deviceindex(index)
+CaptureClass::CaptureClass(IMFActivate* device)
 {
 	mRefCount = 1;
 	InitializeCriticalSection(&mCritsec);
@@ -69,6 +69,9 @@ CaptureClass::CaptureClass(size_t index) : deviceindex(index)
 	mRedoFromStart = 0;
 	gDoCapture = 0;
 	gOptions = 0;
+
+	setup();
+	wcname = updatename(device);
 }
 
 CaptureClass::~CaptureClass()
@@ -619,83 +622,49 @@ std::vector<CaptureClass::resolution> CaptureClass::getSupportedResolutions()
 
 HRESULT CaptureClass::initCapture(const struct SimpleCapParams* aParams, unsigned int aOptions)
 {
+	HRESULT hr;
+
 	deinitCapture();
-
-	HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-
-	DO_OR_DIE;
-
-	hr = MFStartup(MF_VERSION);
-
-	DO_OR_DIE;
-
-	// choose device
-	IMFAttributes* attributes = nullptr;
-	hr = MFCreateAttributes(&attributes, 1);
-	ScopedRelease<IMFAttributes> attributes_s(attributes);
-
-	DO_OR_DIE;
-
-	hr = attributes->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
-	                         MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
-
-	DO_OR_DIE;
-
-	ChooseDeviceParam param = {};
-	hr = MFEnumDeviceSources(attributes, &param.mDevices, &param.mCount);
-
-	DO_OR_DIE;
 
 	gParams = *aParams;
 	gOptions = aOptions;
 
-	if (param.mCount > deviceindex)
+	// use param.ppDevices[0]
+	IMFAttributes* attributes = nullptr;
+	EnterCriticalSection(&mCritsec);
+
+	ChooseDeviceParam param = {};
+	IMFActivate* device = get(param);
+	if (!device)
 	{
-		// use param.ppDevices[0]
-		IMFAttributes* attributes = nullptr;
-		EnterCriticalSection(&mCritsec);
-
-		hr =
-		    param.mDevices[deviceindex]->ActivateObject(__uuidof(IMFMediaSource), (void**)&mSource);
-
-		DO_OR_DIE_CRITSECTION;
-
-		hr = MFCreateAttributes(&attributes, 3);
-		ScopedRelease<IMFAttributes> attributes_s(attributes);
-
-		DO_OR_DIE_CRITSECTION;
-
-		hr = attributes->SetUINT32(MF_READWRITE_DISABLE_CONVERTERS, TRUE);
-
-		DO_OR_DIE_CRITSECTION;
-
-		hr = attributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, this);
-
-		DO_OR_DIE_CRITSECTION;
-
-		hr = MFCreateSourceReaderFromMediaSource(mSource, attributes, &mReader);
-
-		DO_OR_DIE_CRITSECTION;
-
 		LeaveCriticalSection(&mCritsec);
-		changeResolution(gParams.mWidth, gParams.mHeight);
+		mErrorLine = __LINE__;
+		mErrorCode = E_FAIL;
+		return mErrorCode;
 	}
-	else
-	{
-		return MF_E_INVALIDINDEX;
-	}
+	hr = device->ActivateObject(__uuidof(IMFMediaSource), (void**)&mSource);
 
-	/*
-	for (i = 0; i < 16; i++)
-	{
-	char temp[128];
-	float v;
-	int f;
-	int r = GetProperty(i, v, f);
-	sprintf(temp, "%d: %3.3f %d (%d)\n", i, v, f, r);
-	OutputDebugStringA(temp);
-	}
-	*/
+	DO_OR_DIE_CRITSECTION;
+
+	hr = MFCreateAttributes(&attributes, 3);
+	ScopedRelease<IMFAttributes> attributes_s(attributes);
+
+	DO_OR_DIE_CRITSECTION;
+
+	hr = attributes->SetUINT32(MF_READWRITE_DISABLE_CONVERTERS, TRUE);
+
+	DO_OR_DIE_CRITSECTION;
+
+	hr = attributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, this);
+
+	DO_OR_DIE_CRITSECTION;
+
+	hr = MFCreateSourceReaderFromMediaSource(mSource, attributes, &mReader);
+
+	DO_OR_DIE_CRITSECTION;
+
+	LeaveCriticalSection(&mCritsec);
+	changeResolution(gParams.mWidth, gParams.mHeight);
 
 	return 0;
 }
@@ -756,58 +725,12 @@ void CaptureClass::deinitCapture()
 	LeaveCriticalSection(&mCritsec);
 }
 
-std::wstring CaptureClass::name()
+std::wstring CaptureClass::name() const
 {
-	std::wstring cname;
-
-	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-
-	if (FAILED(hr))
-		return cname;
-
-	hr = MFStartup(MF_VERSION);
-
-	if (FAILED(hr))
-		return cname;
-
-	// choose device
-	IMFAttributes* attributes = nullptr;
-	hr = MFCreateAttributes(&attributes, 1);
-	ScopedRelease<IMFAttributes> attributes_s(attributes);
-
-	if (FAILED(hr))
-		return cname;
-
-	hr = attributes->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
-	                         MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
-
-	if (FAILED(hr))
-		return cname;
-
-	ChooseDeviceParam param = {};
-	hr = MFEnumDeviceSources(attributes, &param.mDevices, &param.mCount);
-
-	if (FAILED(hr))
-		return cname;
-
-	if (deviceindex < param.mCount)
-	{
-		WCHAR* name = 0;
-		UINT32 namelen = 255;
-		hr = param.mDevices[deviceindex]->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME,
-		                                                     &name, &namelen);
-		if (SUCCEEDED(hr) && name)
-		{
-			for (size_t x = 0; x < namelen; x++)
-				cname += name[x];
-
-			CoTaskMemFree(name);
-		}
-	}
-	return cname;
+	return wcname;
 }
 
-std::string CaptureClass::cname()
+std::string CaptureClass::cname() const
 {
 	const std::wstring wname = name();
 	using convert_type = std::codecvt_utf8<wchar_t>;
@@ -815,4 +738,81 @@ std::string CaptureClass::cname()
 
 	// use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
 	return converter.to_bytes(wname);
+}
+
+std::wstring CaptureClass::updatename(IMFActivate* device)
+{
+	std::wstring wcname;
+	HRESULT hr;
+	WCHAR* name = 0;
+	UINT32 namelen = 255;
+
+	hr = device->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME, &name, &namelen);
+	if (SUCCEEDED(hr) && name)
+	{
+		for (size_t x = 0; x < namelen; x++)
+			wcname += name[x];
+
+		CoTaskMemFree(name);
+	}
+	return wcname;
+}
+
+bool CaptureClass::getall(ChooseDeviceParam& param)
+{
+	HRESULT hr;
+
+	if (!setup())
+	{
+		return false;
+	}
+	// choose device
+	IMFAttributes* attributes = nullptr;
+	hr = MFCreateAttributes(&attributes, 1);
+	ScopedRelease<IMFAttributes> attributes_s(attributes);
+
+	if (FAILED(hr))
+		return false;
+
+	hr = attributes->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
+	                         MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
+	if (FAILED(hr))
+		return false;
+
+	hr = MFEnumDeviceSources(attributes, &param.mDevices, &param.mCount);
+
+	if (FAILED(hr))
+		return false;
+
+	return true;
+}
+
+bool CaptureClass::setup()
+{
+	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+	if (FAILED(hr))
+	{
+		return false;
+	}
+	hr = MFStartup(MF_VERSION);
+	return SUCCEEDED(hr);
+}
+
+IMFActivate* CaptureClass::get(ChooseDeviceParam& param)
+{
+	if (!getall(param))
+	{
+		return nullptr;
+	}
+
+	for (size_t x = 0; x < param.mCount; x++)
+	{
+		const std::wstring name = updatename(param.mDevices[x]);
+		if (name.compare(wcname) == 0)
+		{
+			return param.mDevices[x];
+		}
+	}
+
+	return nullptr;
 }

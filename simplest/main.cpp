@@ -1,6 +1,12 @@
 /* "simplest", example of simply enumerating the available devices with ESCAPI */
 #include <stdio.h>
 #include "escapi.h"
+#include <iostream>
+
+static void hotplug(void* context, size_t device, bool added)
+{
+	std::cout << "device " << device << " was " << added << ", context " << context << std::endl;
+}
 
 int main()
 {
@@ -8,7 +14,7 @@ int main()
 
 	/* Initialize ESCAPI */
 
-	size_t devices = setupESCAPI();
+	size_t devices = setupESCAPI(hotplug, (void*)0x12345);
 
 	if (devices == 0)
 	{

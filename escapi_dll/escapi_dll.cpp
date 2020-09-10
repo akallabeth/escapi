@@ -37,6 +37,12 @@ extern "C" size_t __declspec(dllexport) countCaptureDevices()
 	return EscAPI::CountCaptureDevices();
 }
 
+extern "C" void __declspec(dllexport)
+    setCaptureDeviceHotplugFunction(hotplug_event_t fkt, void* context)
+{
+	EscAPI::SetHotplugCallback(fkt, context);
+}
+
 extern "C" size_t __declspec(dllexport) getCaptureDeviceIds(size_t* buffer, size_t count)
 {
 	return EscAPI::GetCaptureDeviceIds(buffer, count);

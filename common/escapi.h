@@ -1,3 +1,4 @@
+#pragma once
 /* Extremely Simple Capture API */
 
 struct SimpleCapParams
@@ -34,12 +35,16 @@ enum CAPTURE_PROPETIES
 	CAPTURE_PROP_MAX
 };
 
+typedef void (*hotplug_event_t)(void* context, size_t device, bool added);
+
 /* Sets up the ESCAPI DLL and the function pointers below. Call this first! */
 /* Returns number of capture devices found (same as countCaptureDevices, below) */
-extern size_t setupESCAPI(void);
+extern size_t setupESCAPI(hotplug_event_t fkt, void* context);
 
 /* return the number of capture devices found */
 typedef size_t (*countCaptureDevicesProc)(void);
+
+typedef void (*setCaptureDeviceHotplugFunctionProc)(hotplug_event_t fkt, void* context);
 
 /* Return the number of device IDS copied to the buffer, the number of devices if buffer is NULL */
 typedef size_t (*getCaptureDeviceIdsProc)(size_t* buffer, size_t count);
@@ -112,6 +117,7 @@ typedef int (*initCaptureWithOptionsProc)(size_t deviceno, struct SimpleCapParam
 #define CAPTURE_OPTIONS_MASK (CAPTURE_OPTION_RAWDATA)
 
 #ifndef ESCAPI_DEFINITIONS_ONLY
+extern setCaptureDeviceHotplugFunctionProc setCaptureDeviceHotplugFunction;
 extern countCaptureDevicesProc countCaptureDevices;
 extern getCaptureDeviceIdsProc getCaptureDeviceIds;
 extern getCaptureSupportedResolutionsProc getCaptureSupportedResolutions;

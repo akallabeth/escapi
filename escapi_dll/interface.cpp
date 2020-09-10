@@ -15,14 +15,20 @@
 #include "choosedeviceparam.h"
 
 #include <map>
+#include <memory>
 
-std::map<size_t, CaptureClass> EscAPI::sDeviceList;
+std::map<size_t, std::unique_ptr<CaptureClass>> EscAPI::sDeviceList;
 size_t EscAPI::sDeviceCount = 23;
+hotplug_event_t EscAPI::sHotplugEvent = nullptr;
+void* EscAPI::sHotplugConext = nullptr;
 
 void EscAPI::DoCapture(size_t deviceno)
 {
-	if (CheckForFail(deviceno))
-		getDevice(deviceno).gDoCapture = -1;
+	CaptureClass* dev;
+	if (getDevice(deviceno, &dev))
+	{
+		dev->gDoCapture = -1;
+	}
 }
 
 int EscAPI::IsCaptureDone(size_t deviceno)
@@ -30,8 +36,12 @@ int EscAPI::IsCaptureDone(size_t deviceno)
 	if (!CheckForFail(deviceno))
 		return 0;
 
-	if (getDevice(deviceno).gDoCapture == 1)
-		return 1;
+	CaptureClass* dev;
+	if (getDevice(deviceno, &dev))
+	{
+		return dev->gDoCapture == 1 ? 1 : 0;
+	}
+
 	return 0;
 }
 
@@ -40,18 +50,29 @@ void EscAPI::CleanupDevice(size_t aDevice)
     sDeviceList.erase(aDevice);
 }
 
+void EscAPI::SetHotplugCallback(hotplug_event_t fkt, void* context)
+{
+	sHotplugEvent = fkt;
+	sHotplugConext = context;
+}
+
 HRESULT EscAPI::InitDevice(size_t aDevice, const struct SimpleCapParams* aParams,
                            unsigned int aOptions)
 {
-	return getDevice(aDevice).initCapture(aParams, aOptions);
+	CaptureClass* dev;
+	if (!getDevice(aDevice, &dev))
+	{
+		return E_FAIL;
+	}
+	return dev->initCapture(aParams, aOptions);
 }
 
 size_t EscAPI::GetSupportedResolutions(size_t device, size_t* widths, size_t* heights, size_t count)
 {
 	if (sDeviceList.find(device) == sDeviceList.end())
 		return 0;
-	CaptureClass& dev = sDeviceList.at(device);
-	std::vector<CaptureClass::resolution> resolutions = dev.getSupportedResolutions();
+	auto& dev = sDeviceList.at(device);
+	std::vector<CaptureClass::resolution> resolutions = dev->getSupportedResolutions();
 	size_t used = std::min<size_t>(count, resolutions.size());
 	if (!widths || !heights || (count == 0))
 		return resolutions.size();
@@ -67,58 +88,22 @@ size_t EscAPI::GetSupportedResolutions(size_t device, size_t* widths, size_t* he
 
 size_t EscAPI::CountCaptureDevices()
 {
-	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-
-	if (FAILED(hr))
-		return 0;
-
-	hr = MFStartup(MF_VERSION);
-
-	if (FAILED(hr))
-		return 0;
-
-	// choose device
-	IMFAttributes* attributes = NULL;
-	hr = MFCreateAttributes(&attributes, 1);
-	ScopedRelease<IMFAttributes> attributes_s(attributes);
-
-	if (FAILED(hr))
-		return 0;
-
-	hr = attributes->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
-	                         MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
-	if (FAILED(hr))
-		return 0;
-
-	ChooseDeviceParam param = {};
-	hr = MFEnumDeviceSources(attributes, &param.mDevices, &param.mCount);
-
-	if (FAILED(hr))
-		return 0;
-
-	sDeviceList.clear();
-	for (size_t x = 0; x < param.mCount; x++)
-	{
-		std::pair<size_t, CaptureClass> pair =
-		    std::pair<size_t, CaptureClass>(sDeviceCount++, CaptureClass(x));
-
-		sDeviceList.insert(pair);
-	}
-
-	return param.mCount;
+	update();
+	return sDeviceList.size();
 }
 
 size_t EscAPI::GetCaptureDeviceIds(size_t *buffer, size_t count)
 {
+	update();
 	if (!buffer)
 		return sDeviceList.size();
 	size_t pos = 0;
 	size_t used = std::min<size_t>(count, sDeviceList.size());
-	for (std::map<size_t, CaptureClass>::const_iterator it = sDeviceList.begin(); it != sDeviceList.end(); it++)
+	for (auto& it : sDeviceList)
 	{
 		if (pos >= used)
 			break;
-		buffer[pos++] = it->first;
+		buffer[pos++] = it.first;
 	}
 
 	return used;
@@ -126,11 +111,19 @@ size_t EscAPI::GetCaptureDeviceIds(size_t *buffer, size_t count)
 
 size_t EscAPI::GetCaptureDeviceName(size_t aDevice, char* aNamebuffer, size_t aBufferlength)
 {
-	if (sDeviceList.find(aDevice) == sDeviceList.end())
+	CaptureClass* dev;
+	if (!getDevice(aDevice, &dev))
+	{
 		return 0;
+	}
+
+	std::string name = dev->cname();
+	if (!aNamebuffer && (aBufferlength == 0))
+		return name.size();
+
 	if (aBufferlength < 1)
 		return 0;
-	std::string name = getDevice(aDevice).cname();
+
 	size_t used = std::min<size_t>(name.size(), aBufferlength - 1);
 	strcpy_s(aNamebuffer, used + 1, name.c_str());
 	return used;
@@ -138,11 +131,19 @@ size_t EscAPI::GetCaptureDeviceName(size_t aDevice, char* aNamebuffer, size_t aB
 
 size_t EscAPI::GetCaptureDeviceNameW(size_t aDevice, wchar_t* aNamebuffer, size_t aBufferlength)
 {
-	if (sDeviceList.find(aDevice) == sDeviceList.end())
+	CaptureClass* dev;
+	if (!getDevice(aDevice, &dev))
+	{
 		return 0;
+	}
+
+	std::wstring name = dev->name();
+	if (!aNamebuffer && (aBufferlength == 0))
+		return name.size();
+
 	if (aBufferlength < 1)
 		return 0;
-	std::wstring name = getDevice(aDevice).name();
+
 	size_t used = std::min<size_t>(name.size(), aBufferlength - 1);
 	wcscpy_s(aNamebuffer, used + 1, name.c_str());
 	return used;
@@ -150,16 +151,17 @@ size_t EscAPI::GetCaptureDeviceNameW(size_t aDevice, wchar_t* aNamebuffer, size_
 
 bool EscAPI::CheckForFail(size_t aDevice)
 {
-	if (sDeviceList.find(aDevice) == sDeviceList.end())
-		return false;
-
-	if (getDevice(aDevice).mRedoFromStart)
+	CaptureClass* dev;
+	if (!getDevice(aDevice, &dev))
 	{
-		CaptureClass& dev = getDevice(aDevice);
-		dev.mRedoFromStart = 0;
-		dev.deinitCapture();
+		return false;
+	}
+	if (dev->mRedoFromStart)
+	{
+		dev->mRedoFromStart = 0;
+		dev->deinitCapture();
 
-		HRESULT hr = dev.initCapture(&dev.gParams, dev.gOptions);
+		HRESULT hr = dev->initCapture(&dev->gParams, dev->gOptions);
 		if (FAILED(hr))
 			return false;
 	}
@@ -167,18 +169,88 @@ bool EscAPI::CheckForFail(size_t aDevice)
 	return true;
 }
 
+bool EscAPI::update()
+{
+	ChooseDeviceParam param = {};
+	if (!CaptureClass::getall(param))
+		return false;
+
+	std::vector<size_t> available;
+	std::vector<size_t> added;
+	for (size_t x = 0; x < param.mCount; x++)
+	{
+		std::unique_ptr<CaptureClass> device(new CaptureClass(param.mDevices[x]));
+
+		auto idx = contains(sDeviceList, *device);
+		if (idx < 0)
+		{
+			sDeviceList.emplace(std::make_pair<size_t, std::unique_ptr<CaptureClass>>(
+			    std::move(sDeviceCount), std::move(device)));
+			added.push_back(sDeviceCount);
+			available.push_back(sDeviceCount);
+			sDeviceCount++;
+		}
+		else
+		{
+			available.push_back(idx);
+		}
+	}
+
+	std::vector<size_t> removed;
+	for (auto& it : sDeviceList)
+	{
+		bool found = false;
+		for (auto ix = available.begin(); ix != available.end(); ix++)
+		{
+			if (it.first == *ix)
+			{
+				found = true;
+				break;
+			}
+		}
+		if (!found)
+		{
+			removed.push_back(it.first);
+		}
+	}
+
+	for (auto it : removed)
+	{
+		sDeviceList.erase(it);
+	}
+
+	if (sHotplugEvent)
+	{
+		for (auto it : removed)
+		{
+			sHotplugEvent(sHotplugConext, it, false);
+		}
+		for (auto it : added)
+		{
+			sHotplugEvent(sHotplugConext, it, true);
+		}
+	}
+	return true;
+}
+
 int EscAPI::GetErrorCode(size_t aDevice)
 {
-	if (sDeviceList.find(aDevice) == sDeviceList.end())
+	CaptureClass* dev;
+	if (!getDevice(aDevice, &dev))
+	{
 		return 0;
-	return getDevice(aDevice).mErrorCode;
+	}
+	return dev->mErrorCode;
 }
 
 int EscAPI::GetErrorLine(size_t aDevice)
 {
-	if (sDeviceList.find(aDevice) == sDeviceList.end())
+	CaptureClass* dev;
+	if (!getDevice(aDevice, &dev))
+	{
 		return 0;
-	return getDevice(aDevice).mErrorLine;
+	}
+	return dev->mErrorLine;
 }
 
 float EscAPI::GetProperty(size_t aDevice, int aProp)
@@ -187,7 +259,12 @@ float EscAPI::GetProperty(size_t aDevice, int aProp)
 		return 0;
 	float val;
 	int autoval;
-	getDevice(aDevice).getProperty(aProp, val, autoval);
+	CaptureClass* dev;
+	if (!getDevice(aDevice, &dev))
+	{
+		return 0;
+	}
+	dev->getProperty(aProp, val, autoval);
 	return val;
 }
 
@@ -197,7 +274,12 @@ int EscAPI::GetPropertyAuto(size_t aDevice, int aProp)
 		return 0;
 	float val;
 	int autoval;
-	getDevice(aDevice).getProperty(aProp, val, autoval);
+	CaptureClass* dev;
+	if (!getDevice(aDevice, &dev))
+	{
+		return 0;
+	}
+	dev->getProperty(aProp, val, autoval);
 	return autoval;
 }
 
@@ -205,10 +287,36 @@ int EscAPI::SetProperty(size_t aDevice, int aProp, float aValue, int aAutoval)
 {
 	if (!CheckForFail(aDevice))
 		return 0;
-	return getDevice(aDevice).setProperty(aProp, aValue, aAutoval);
+	CaptureClass* dev;
+	if (!getDevice(aDevice, &dev))
+	{
+		return 0;
+	}
+	return dev->setProperty(aProp, aValue, aAutoval);
 }
 
-CaptureClass& EscAPI::getDevice(size_t device)
+bool EscAPI::getDevice(size_t device, CaptureClass** dev)
 {
-	return sDeviceList.at(device);
+	if (!dev)
+		return false;
+
+	update();
+
+	*dev = sDeviceList.at(device).get();
+	return true;
+}
+
+SSIZE_T EscAPI::contains(const std::map<size_t, std::unique_ptr<CaptureClass>>& map,
+                         CaptureClass& device)
+{
+	const std::wstring& cmp = device.name();
+	for (auto& it : map)
+	{
+		const std::wstring& cur = it.second->name();
+		if (cmp.compare(cur) == 0)
+		{
+			return it.first;
+		}
+	}
+	return -1;
 }

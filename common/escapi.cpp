@@ -1,6 +1,7 @@
 #include <windows.h>
 #include "escapi.h"
 
+setCaptureDeviceHotplugFunctionProc setCaptureDeviceHotplugFunction;
 countCaptureDevicesProc countCaptureDevices;
 getCaptureDeviceIdsProc getCaptureDeviceIds;
 getCaptureSupportedResolutionsProc getCaptureSupportedResolutions;
@@ -22,7 +23,7 @@ initCaptureWithOptionsProc initCaptureWithOptions;
 typedef void (*initCOMProc)(void);
 initCOMProc initCOM;
 
-size_t setupESCAPI(void)
+size_t setupESCAPI(hotplug_event_t fkt, void* context)
 {
 	/* Load DLL dynamically */
 	HMODULE capdll = LoadLibraryA("escapi.dll");
@@ -31,6 +32,9 @@ size_t setupESCAPI(void)
 
 	/* Fetch function entry points */
 	countCaptureDevices     = reinterpret_cast<countCaptureDevicesProc>(GetProcAddress(capdll, "countCaptureDevices"));
+	setCaptureDeviceHotplugFunction = reinterpret_cast<setCaptureDeviceHotplugFunctionProc>(
+	    GetProcAddress(capdll, "setCaptureDeviceHotplugFunction"));
+
 	getCaptureDeviceIds     = reinterpret_cast<getCaptureDeviceIdsProc>(GetProcAddress(capdll, "getCaptureDeviceIds"));
 	getCaptureSupportedResolutions = reinterpret_cast<getCaptureSupportedResolutionsProc>(
 	    GetProcAddress(capdll, "getCaptureSupportedResolutions"));
@@ -52,13 +56,13 @@ size_t setupESCAPI(void)
 
 	/* Check that we got all the entry points */
 	if ((initCOM == nullptr) || (ESCAPIVersion == nullptr) || (getCaptureDeviceName == nullptr) ||
-	    (getCaptureDeviceNameW == nullptr) || (getCaptureDeviceIds == nullptr) ||
-	    (getCaptureSupportedResolutions == nullptr) || (countCaptureDevices == nullptr) ||
-	    (initCapture == nullptr) || (deinitCapture == nullptr) || (doCapture == nullptr) ||
-	    (isCaptureDone == nullptr) || (getCapturePropertyValue == nullptr) ||
-	    (getCapturePropertyAuto == nullptr) || (setCaptureProperty == nullptr) ||
-	    (getCaptureErrorLine == nullptr) || (getCaptureErrorCode == nullptr) ||
-	    (initCaptureWithOptions == nullptr))
+	    (setCaptureDeviceHotplugFunction == nullptr) || (getCaptureDeviceNameW == nullptr) ||
+	    (getCaptureDeviceIds == nullptr) || (getCaptureSupportedResolutions == nullptr) ||
+	    (countCaptureDevices == nullptr) || (initCapture == nullptr) ||
+	    (deinitCapture == nullptr) || (doCapture == nullptr) || (isCaptureDone == nullptr) ||
+	    (getCapturePropertyValue == nullptr) || (getCapturePropertyAuto == nullptr) ||
+	    (setCaptureProperty == nullptr) || (getCaptureErrorLine == nullptr) ||
+	    (getCaptureErrorCode == nullptr) || (initCaptureWithOptions == nullptr))
 		return 0;
 
 	/* Verify DLL version is at least what we want */
@@ -67,6 +71,8 @@ size_t setupESCAPI(void)
 
 	/* Initialize COM.. */
 	initCOM();
+
+	setCaptureDeviceHotplugFunction(fkt, context);
 
 	/* and return the number of capture devices found. */
 	return countCaptureDevices();
