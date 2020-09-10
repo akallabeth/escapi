@@ -7,9 +7,9 @@ struct SimpleCapParams
 	 */
 	int* mTargetBuf;
 	/* Buffer width */
-	int mWidth;
+	size_t mWidth;
 	/* Buffer height */
-	int mHeight;
+	size_t mHeight;
 };
 
 enum CAPTURE_PROPETIES
@@ -36,13 +36,16 @@ enum CAPTURE_PROPETIES
 
 /* Sets up the ESCAPI DLL and the function pointers below. Call this first! */
 /* Returns number of capture devices found (same as countCaptureDevices, below) */
-extern int setupESCAPI(void);
+extern size_t setupESCAPI(void);
 
 /* return the number of capture devices found */
 typedef size_t (*countCaptureDevicesProc)(void);
 
 /* Return the number of device IDS copied to the buffer, the number of devices if buffer is NULL */
 typedef size_t (*getCaptureDeviceIdsProc)(size_t* buffer, size_t count);
+
+typedef size_t (*getCaptureSupportedResolutionsProc)(size_t deviceno, size_t* widths,
+                                                     size_t* heights, size_t count);
 
 /* initCapture tries to open the video capture device.
  * Returns 0 on failure, 1 on success.
@@ -109,6 +112,7 @@ typedef int (*initCaptureWithOptionsProc)(size_t deviceno, struct SimpleCapParam
 #ifndef ESCAPI_DEFINITIONS_ONLY
 extern countCaptureDevicesProc countCaptureDevices;
 extern getCaptureDeviceIdsProc getCaptureDeviceIds;
+extern getCaptureSupportedResolutionsProc getCaptureSupportedResolutions;
 extern initCaptureProc initCapture;
 extern deinitCaptureProc deinitCapture;
 extern doCaptureProc doCapture;

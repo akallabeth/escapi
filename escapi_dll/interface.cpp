@@ -17,7 +17,7 @@
 #include <map>
 
 std::map<size_t, CaptureClass> EscAPI::sDeviceList;
-size_t EscAPI::sDeviceCount = 0;
+size_t EscAPI::sDeviceCount = 23;
 
 void EscAPI::DoCapture(size_t deviceno)
 {
@@ -43,17 +43,26 @@ void EscAPI::CleanupDevice(size_t aDevice)
 HRESULT EscAPI::InitDevice(size_t aDevice, const struct SimpleCapParams* aParams,
                            unsigned int aOptions)
 {
-	CleanupDevice(aDevice);
+	return getDevice(aDevice).initCapture(aParams, aOptions);
+}
 
-	std::pair<size_t, CaptureClass> pair =
-	    std::pair<size_t, CaptureClass>(sDeviceCount++, CaptureClass());
+size_t EscAPI::GetSupportedResolutions(size_t device, size_t* widths, size_t* heights, size_t count)
+{
+	if (sDeviceList.find(device) == sDeviceList.end())
+		return 0;
+	CaptureClass& dev = sDeviceList.at(device);
+	std::vector<CaptureClass::resolution> resolutions = dev.getSupportedResolutions();
+	size_t used = std::min<size_t>(count, resolutions.size());
+	if (!widths || !heights || (count == 0))
+		return resolutions.size();
 
-	sDeviceList.insert(pair);
-	HRESULT hr = getDevice(aDevice).initCapture(aDevice, aParams, aOptions);
-	if (FAILED(hr))
-		CleanupDevice(aDevice);
-
-	return hr;
+	for (size_t x = 0; x < used; x++)
+	{
+		CaptureClass::resolution& res = resolutions.at(x);
+		widths[x] = res.w;
+		heights[x] = res.h;
+	}
+	return used;
 }
 
 size_t EscAPI::CountCaptureDevices()
@@ -86,6 +95,15 @@ size_t EscAPI::CountCaptureDevices()
 
 	if (FAILED(hr))
 		return 0;
+
+	sDeviceList.clear();
+	for (size_t x = 0; x < param.mCount; x++)
+	{
+		std::pair<size_t, CaptureClass> pair =
+		    std::pair<size_t, CaptureClass>(sDeviceCount++, CaptureClass(x));
+
+		sDeviceList.insert(pair);
+	}
 
 	return param.mCount;
 }
@@ -176,12 +194,9 @@ bool EscAPI::CheckForFail(size_t aDevice)
 		dev.mRedoFromStart = 0;
 		dev.deinitCapture();
 
-		HRESULT hr = dev.initCapture(aDevice, &dev.gParams, dev.gOptions);
+		HRESULT hr = dev.initCapture(&dev.gParams, dev.gOptions);
 		if (FAILED(hr))
-		{
-			CleanupDevice(aDevice);
 			return false;
-		}
 	}
 
 	return true;

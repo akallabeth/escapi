@@ -36,6 +36,12 @@ extern "C" size_t __declspec(dllexport) getCaptureDeviceIds(size_t* buffer, size
 	return EscAPI::GetCaptureDeviceIds(buffer, count);
 }
 
+extern "C" size_t __declspec(dllexport)
+    getCaptureSupportedResolutions(size_t deviceno, size_t* widths, size_t* heights, size_t count)
+{
+	return EscAPI::GetSupportedResolutions(deviceno, widths, heights, count);
+}
+
 extern "C" void __declspec(dllexport) initCOM()
 {
 	CoInitialize(NULL);

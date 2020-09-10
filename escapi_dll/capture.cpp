@@ -20,10 +20,6 @@
 #include "videobufferlock.h"
 #include "choosedeviceparam.h"
 
-extern struct SimpleCapParams gParams[];
-extern int gDoCapture[];
-extern int gOptions[];
-
 #define DO_OR_DIE                  \
 	{                              \
 		if (mErrorLine)            \
@@ -51,7 +47,7 @@ extern int gOptions[];
 		}                                    \
 	}
 
-CaptureClass::CaptureClass()
+CaptureClass::CaptureClass(size_t index) : deviceindex(index)
 {
 	mRefCount = 1;
 	InitializeCriticalSection(&mCritsec);
@@ -110,7 +106,7 @@ STDMETHODIMP CaptureClass::OnReadSample(HRESULT aStatus, DWORD aStreamIndex, DWO
                                         LONGLONG aTimestamp, IMFSample* aSample)
 {
 	HRESULT hr = S_OK;
-	IMFMediaBuffer* mediabuffer = NULL;
+	IMFMediaBuffer* mediabuffer = nullptr;
 
 	if (FAILED(aStatus))
 	{
@@ -149,7 +145,7 @@ STDMETHODIMP CaptureClass::OnReadSample(HRESULT aStatus, DWORD aStreamIndex, DWO
 				{
 					VideoBufferLock buffer(mediabuffer); // Helper object to lock the video buffer.
 
-					BYTE* scanline0 = NULL;
+					BYTE* scanline0 = nullptr;
 					LONG stride = 0;
 					hr = buffer.LockBuffer(mDefaultStride, mCaptureBufferHeight, &scanline0,
 					                       &stride);
@@ -168,7 +164,7 @@ STDMETHODIMP CaptureClass::OnReadSample(HRESULT aStatus, DWORD aStreamIndex, DWO
 
 						VideoBufferLock buffer(
 						    mediabuffer); // Helper object to lock the video buffer.
-						BYTE* scanline0 = NULL;
+						BYTE* scanline0 = nullptr;
 						LONG stride = 0;
 						hr = buffer.LockBuffer(mDefaultStride, mCaptureBufferHeight, &scanline0,
 						                       &stride);
@@ -201,10 +197,10 @@ STDMETHODIMP CaptureClass::OnReadSample(HRESULT aStatus, DWORD aStreamIndex, DWO
 
 	// Request the next frame.
 	hr = mReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, 0,
-	                         NULL, // actual
-	                         NULL, // flags
-	                         NULL, // timestamp
-	                         NULL  // sample
+	                         nullptr, // actual
+	                         nullptr, // flags
+	                         nullptr, // timestamp
+	                         nullptr  // sample
 	);
 
 	DO_OR_DIE_CRITSECTION;
@@ -288,8 +284,8 @@ int CaptureClass::escapiPropToMFProp(int aProperty)
 int CaptureClass::setProperty(int aProperty, float aValue, int aAuto)
 {
 	HRESULT hr;
-	IAMVideoProcAmp* procAmp = NULL;
-	IAMCameraControl* control = NULL;
+	IAMVideoProcAmp* procAmp = nullptr;
+	IAMCameraControl* control = nullptr;
 
 	int prop = escapiPropToMFProp(aProperty);
 
@@ -340,8 +336,8 @@ int CaptureClass::setProperty(int aProperty, float aValue, int aAuto)
 int CaptureClass::getProperty(int aProperty, float& aValue, int& aAuto)
 {
 	HRESULT hr;
-	IAMVideoProcAmp* procAmp = NULL;
-	IAMCameraControl* control = NULL;
+	IAMVideoProcAmp* procAmp = nullptr;
+	IAMCameraControl* control = nullptr;
 
 	aAuto = 0;
 	aValue = -1;
@@ -398,8 +394,8 @@ int CaptureClass::getProperty(int aProperty, float& aValue, int& aAuto)
 
 BOOL CaptureClass::isFormatSupported(REFGUID aSubtype) const
 {
-	int i;
-	for (i = 0; i < (signed)gConversionFormats; i++)
+	DWORD i;
+	for (i = 0; i < gConversionFormats; i++)
 	{
 		if (aSubtype == gFormatConversions[i].mSubtype)
 		{
@@ -421,7 +417,7 @@ HRESULT CaptureClass::getFormat(DWORD aIndex, GUID* aSubtype) const
 
 HRESULT CaptureClass::setConversionFunction(REFGUID aSubtype)
 {
-	mConvertFn = NULL;
+	mConvertFn = nullptr;
 
 	// If raw data is desired, skip conversion
 	if (gOptions & CAPTURE_OPTION_RAWDATA)
@@ -442,7 +438,7 @@ HRESULT CaptureClass::setConversionFunction(REFGUID aSubtype)
 HRESULT CaptureClass::setVideoType(IMFMediaType* aType)
 {
 	HRESULT hr = S_OK;
-	GUID subtype = { 0 };
+	GUID subtype = {};
 
 	// Find the video subtype.
 	hr = aType->GetGUID(MF_MT_SUBTYPE, &subtype);
@@ -485,7 +481,7 @@ HRESULT CaptureClass::setVideoType(IMFMediaType* aType)
 	return hr;
 }
 
-int CaptureClass::isMediaOk(IMFMediaType* aType, int aIndex)
+int CaptureClass::isMediaOk(IMFMediaType* aType, unsigned int aIndex)
 {
 	HRESULT hr = S_OK;
 
@@ -495,7 +491,7 @@ int CaptureClass::isMediaOk(IMFMediaType* aType, int aIndex)
 			return FALSE;
 
 	BOOL found = FALSE;
-	GUID subtype = { 0 };
+	GUID subtype = {};
 
 	hr = aType->GetGUID(MF_MT_SUBTYPE, &subtype);
 
@@ -529,7 +525,7 @@ int CaptureClass::isMediaOk(IMFMediaType* aType, int aIndex)
 			}
 
 			// Try to set this type on the source reader.
-			hr = mReader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, NULL,
+			hr = mReader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, nullptr,
 			                                  aType);
 
 			if (SUCCEEDED(hr))
@@ -550,9 +546,10 @@ int CaptureClass::scanMediaTypes(unsigned int aWidth, unsigned int aHeight)
 	int besterror = 0xfffffff;
 	int bestfit = 0;
 
+	resolutions.clear();
 	while (nativeTypeErrorCode == S_OK && besterror)
 	{
-		IMFMediaType* nativeType = NULL;
+		IMFMediaType* nativeType = nullptr;
 		nativeTypeErrorCode = mReader->GetNativeMediaType(
 		    (DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, count, &nativeType);
 		ScopedRelease<IMFMediaType> nativeType_s(nativeType);
@@ -561,7 +558,7 @@ int CaptureClass::scanMediaTypes(unsigned int aWidth, unsigned int aHeight)
 			continue;
 
 		// get the media type
-		GUID nativeGuid = { 0 };
+		GUID nativeGuid = {};
 		hr = nativeType->GetGUID(MF_MT_SUBTYPE, &nativeGuid);
 
 		if (FAILED(hr))
@@ -575,6 +572,7 @@ int CaptureClass::scanMediaTypes(unsigned int aWidth, unsigned int aHeight)
 			if (FAILED(hr))
 				return bestfit;
 
+			resolutions.push_back(resolution(width, height));
 			int error = 0;
 
 			// prefer (hugely) to get too much than too little data..
@@ -609,10 +607,19 @@ int CaptureClass::scanMediaTypes(unsigned int aWidth, unsigned int aHeight)
 	return bestfit;
 }
 
-HRESULT CaptureClass::initCapture(size_t aDevice, const struct SimpleCapParams* aParams,
-                                  unsigned int aOptions)
+std::vector<CaptureClass::resolution> CaptureClass::getSupportedResolutions()
 {
-	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+	if (resolutions.empty())
+		initCapture(&gParams, gOptions);
+
+	return resolutions;
+}
+
+HRESULT CaptureClass::initCapture(const struct SimpleCapParams* aParams, unsigned int aOptions)
+{
+	deinitCapture();
+
+	HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 
 	DO_OR_DIE;
 
@@ -621,7 +628,7 @@ HRESULT CaptureClass::initCapture(size_t aDevice, const struct SimpleCapParams* 
 	DO_OR_DIE;
 
 	// choose device
-	IMFAttributes* attributes = NULL;
+	IMFAttributes* attributes = nullptr;
 	hr = MFCreateAttributes(&attributes, 1);
 	ScopedRelease<IMFAttributes> attributes_s(attributes);
 
@@ -637,14 +644,17 @@ HRESULT CaptureClass::initCapture(size_t aDevice, const struct SimpleCapParams* 
 
 	DO_OR_DIE;
 
-	if (param.mCount > aDevice)
+	gParams = *aParams;
+	gOptions = aOptions;
+
+	if (param.mCount > deviceindex)
 	{
 		// use param.ppDevices[0]
-		IMFAttributes* attributes = NULL;
-		IMFMediaType* type = NULL;
+		IMFAttributes* attributes = nullptr;
 		EnterCriticalSection(&mCritsec);
 
-		hr = param.mDevices[aDevice]->ActivateObject(__uuidof(IMFMediaSource), (void**)&mSource);
+		hr =
+		    param.mDevices[deviceindex]->ActivateObject(__uuidof(IMFMediaSource), (void**)&mSource);
 
 		DO_OR_DIE_CRITSECTION;
 
@@ -665,29 +675,8 @@ HRESULT CaptureClass::initCapture(size_t aDevice, const struct SimpleCapParams* 
 
 		DO_OR_DIE_CRITSECTION;
 
-		int preferredmode = scanMediaTypes(gParams.mWidth, gParams.mHeight);
-		mUsedIndex = preferredmode;
-
-		hr = mReader->GetNativeMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, preferredmode,
-		                                 &type);
-		ScopedRelease<IMFMediaType> type_s(type);
-
-		DO_OR_DIE_CRITSECTION;
-
-		hr = setVideoType(type);
-
-		DO_OR_DIE_CRITSECTION;
-
-		hr = mReader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, NULL, type);
-
-		DO_OR_DIE_CRITSECTION;
-
-		hr = mReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, 0, NULL, NULL, NULL,
-		                         NULL);
-
-		DO_OR_DIE_CRITSECTION;
-
 		LeaveCriticalSection(&mCritsec);
+		changeResolution(gParams.mWidth, gParams.mHeight);
 	}
 	else
 	{
@@ -706,9 +695,41 @@ HRESULT CaptureClass::initCapture(size_t aDevice, const struct SimpleCapParams* 
 	}
 	*/
 
-	gParams = *aParams;
-	gOptions = aOptions;
 	return 0;
+}
+
+bool CaptureClass::changeResolution(size_t width, size_t height)
+{
+	HRESULT hr;
+	IMFMediaType* type = nullptr;
+
+	EnterCriticalSection(&mCritsec);
+
+	gParams.mWidth = width;
+	gParams.mHeight = height;
+	size_t preferredmode = scanMediaTypes(gParams.mWidth, gParams.mHeight);
+	mUsedIndex = preferredmode;
+
+	hr = mReader->GetNativeMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, preferredmode,
+	                                 &type);
+	ScopedRelease<IMFMediaType> type_s(type);
+
+	DO_OR_DIE_CRITSECTION;
+
+	hr = setVideoType(type);
+
+	DO_OR_DIE_CRITSECTION;
+
+	hr = mReader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, nullptr, type);
+
+	DO_OR_DIE_CRITSECTION;
+
+	hr = mReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, 0, nullptr, nullptr,
+	                         nullptr, nullptr);
+
+	DO_OR_DIE_CRITSECTION;
+
+	LeaveCriticalSection(&mCritsec);
 }
 
 void CaptureClass::deinitCapture()

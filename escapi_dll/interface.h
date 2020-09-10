@@ -10,6 +10,10 @@ class EscAPI
   public:
 	static HRESULT InitDevice(size_t device, const struct SimpleCapParams* aParams,
 	                          unsigned int opts);
+
+	static size_t GetSupportedResolutions(size_t device, size_t* widths, size_t* heights,
+	                                      size_t count);
+
 	static void CleanupDevice(size_t device);
 	static size_t CountCaptureDevices();
 	static size_t GetCaptureDeviceIds(size_t* buffer, size_t count);

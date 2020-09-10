@@ -2,20 +2,36 @@
 #include <stdio.h>
 #include "escapi.h"
 
-void main()
+int main()
 {
-	int i, j;
+	size_t i, j;
 
 	/* Initialize ESCAPI */
 
-	int devices = setupESCAPI();
+	size_t devices = setupESCAPI();
 
 	if (devices == 0)
 	{
 		printf("ESCAPI initialization failure or no devices found.\n");
-		return;
+		return -1;
 	}
 
+	size_t ids[64] = {};
+	size_t idcount = getCaptureDeviceIds(ids, 64);
+	if (idcount == 0)
+	{
+		printf("ESCAPI initialization failure or no devices found.\n");
+		return -1;
+	}
+
+	size_t widths[64] = {};
+	size_t heights[64] = {};
+	size_t count = getCaptureSupportedResolutions(ids[0], widths, heights, 64);
+	if (count == 0)
+	{
+		printf("ESCAPI initialization failure, no resolutions detected for device.\n");
+		return -1;
+	}
 	/* Set up capture parameters.
 	 * ESCAPI will scale the data received from the camera
 	 * (with point sampling) to whatever values you want.
@@ -23,9 +39,9 @@ void main()
 	 */
 
 	struct SimpleCapParams capture;
-	capture.mWidth = 24;
-	capture.mHeight = 18;
-	capture.mTargetBuf = new int[24 * 18];
+	capture.mWidth = widths[0];
+	capture.mHeight = heights[0];
+	capture.mTargetBuf = new int[capture.mWidth * capture.mHeight];
 
 	/* Initialize capture - only one capture may be active per device,
 	 * but several devices may be captured at the same time.
@@ -33,10 +49,10 @@ void main()
 	 * 0 is the first device.
 	 */
 
-	if (initCapture(0, &capture) == 0)
+	if (initCapture(ids[0], &capture) == 0)
 	{
 		printf("Capture failed - device may already be in use.\n");
-		return;
+		return -2;
 	}
 
 	/* Go through 10 capture loops so that the camera has
@@ -46,9 +62,9 @@ void main()
 	for (i = 0; i < 10; i++)
 	{
 		/* request a capture */
-		doCapture(0);
+		doCapture(ids[0]);
 
-		while (isCaptureDone(0) == 0)
+		while (isCaptureDone(ids[0]) == 0)
 		{
 			/* Wait until capture is done.
 			 * Warning: if capture init failed, or if the capture
@@ -62,14 +78,15 @@ void main()
 	 * render it in ASCII.. (using 3 top bits of green as the value)
 	 */
 	char light[] = " .,-o+O0@";
-	for (i = 0; i < 18; i++)
+	for (i = 0; i < capture.mHeight; i++)
 	{
-		for (j = 0; j < 24; j++)
+		for (j = 0; j < capture.mWidth; j++)
 		{
 			printf("%c", light[(capture.mTargetBuf[i * 24 + j] >> 13) & 7]);
 		}
 		printf("\n");
 	}
 
-	deinitCapture(0);
+	deinitCapture(ids[0]);
+	return 0;
 }

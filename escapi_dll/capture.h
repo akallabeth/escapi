@@ -13,7 +13,18 @@
 class CaptureClass : public IMFSourceReaderCallback
 {
   public:
-	CaptureClass();
+	struct resolution
+	{
+		size_t w;
+		size_t h;
+
+		resolution(size_t width, size_t height) : w(width), h(height)
+		{
+		}
+	};
+
+  public:
+	CaptureClass(size_t index);
 	virtual ~CaptureClass();
 
 	STDMETHODIMP QueryInterface(REFIID aRiid, void** aPpv);
@@ -30,12 +41,26 @@ class CaptureClass : public IMFSourceReaderCallback
 	HRESULT getFormat(DWORD aIndex, GUID* aSubtype) const;
 	HRESULT setConversionFunction(REFGUID aSubtype);
 	HRESULT setVideoType(IMFMediaType* aType);
-	int isMediaOk(IMFMediaType* aType, int aIndex);
+	int isMediaOk(IMFMediaType* aType, unsigned int aIndex);
 	int scanMediaTypes(unsigned int aWidth, unsigned int aHeight);
-	HRESULT initCapture(size_t aDevice, const struct SimpleCapParams* aParams,
-	                    unsigned int aOptions);
+	std::vector<resolution> getSupportedResolutions();
+
+	HRESULT initCapture(const struct SimpleCapParams* aParams, unsigned int aOptions);
+
+	bool changeResolution(size_t width, size_t height);
+
 	void deinitCapture();
 
+  public:
+	int mRedoFromStart;
+	int gDoCapture;
+	int mErrorLine;
+	int mErrorCode;
+	int gOptions;
+	struct SimpleCapParams gParams;
+
+  private:
+	size_t deviceindex;
 	long mRefCount; // Reference count.
 	CRITICAL_SECTION mCritsec;
 
@@ -47,15 +72,12 @@ class CaptureClass : public IMFSourceReaderCallback
 
 	unsigned int* mCaptureBuffer;
 	unsigned int mCaptureBufferWidth, mCaptureBufferHeight;
-	int mErrorLine;
-	int mErrorCode;
+
 	std::vector<unsigned int> mBadIndex;
 	unsigned int mBadIndices;
 	unsigned int mMaxBadIndices;
 	unsigned int mUsedIndex;
-	int mRedoFromStart;
 
-	int gDoCapture;
-	int gOptions;
-	struct SimpleCapParams gParams;
+  private:
+	std::vector<resolution> resolutions;
 };
