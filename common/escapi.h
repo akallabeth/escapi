@@ -36,10 +36,13 @@ enum CAPTURE_PROPETIES
 
 /* Sets up the ESCAPI DLL and the function pointers below. Call this first! */
 /* Returns number of capture devices found (same as countCaptureDevices, below) */
-extern int setupESCAPI();
+extern int setupESCAPI(void);
 
 /* return the number of capture devices found */
-typedef int (*countCaptureDevicesProc)();
+typedef size_t (*countCaptureDevicesProc)(void);
+
+/* Return the number of device IDS copied to the buffer, the number of devices if buffer is NULL */
+typedef size_t (*getCaptureDeviceIdsProc)(size_t* buffer, size_t count);
 
 /* initCapture tries to open the video capture device.
  * Returns 0 on failure, 1 on success.
@@ -47,22 +50,22 @@ typedef int (*countCaptureDevicesProc)();
  *       is in use (i.e. between initCapture and deinitCapture).
  *       Do *not* free the target buffer, or change its pointer!
  */
-typedef int (*initCaptureProc)(unsigned int deviceno, struct SimpleCapParams* aParams);
+typedef int (*initCaptureProc)(size_t deviceno, struct SimpleCapParams* aParams);
 
 /* deinitCapture closes the video capture device. */
-typedef void (*deinitCaptureProc)(unsigned int deviceno);
+typedef void (*deinitCaptureProc)(size_t deviceno);
 
 /* doCapture requests video frame to be captured. */
-typedef void (*doCaptureProc)(unsigned int deviceno);
+typedef void (*doCaptureProc)(size_t deviceno);
 
 /* isCaptureDone returns 1 when the requested frame has been captured.*/
-typedef int (*isCaptureDoneProc)(unsigned int deviceno);
+typedef int (*isCaptureDoneProc)(size_t deviceno);
 
 /* Get the user-friendly name of a capture device. */
-typedef void (*getCaptureDeviceNameProc)(unsigned int deviceno, char* namebuffer, int bufferlength);
+typedef void (*getCaptureDeviceNameProc)(size_t deviceno, char* namebuffer, size_t bufferlength);
 
 /* Returns the ESCAPI DLL version. 0x200 for 2.0 */
-typedef int (*ESCAPIVersionProc)();
+typedef int (*ESCAPIVersionProc)(void);
 
 /*
     On properties -
@@ -73,11 +76,11 @@ typedef int (*ESCAPIVersionProc)();
 */
 
 /* Gets value (0..1) of a camera property (see CAPTURE_PROPERTIES, above) */
-typedef float (*getCapturePropertyValueProc)(unsigned int deviceno, int prop);
+typedef float (*getCapturePropertyValueProc)(size_t deviceno, int prop);
 /* Gets whether the property is set to automatic (see CAPTURE_PROPERTIES, above) */
-typedef int (*getCapturePropertyAutoProc)(unsigned int deviceno, int prop);
+typedef int (*getCapturePropertyAutoProc)(size_t deviceno, int prop);
 /* Set camera property to a value (0..1) and whether it should be set to auto. */
-typedef int (*setCapturePropertyProc)(unsigned int deviceno, int prop, float value, int autoval);
+typedef int (*setCapturePropertyProc)(size_t deviceno, int prop, float value, int autoval);
 
 /*
     All error situations in ESCAPI are considered catastrophic. If such should
@@ -87,14 +90,14 @@ typedef int (*setCapturePropertyProc)(unsigned int deviceno, int prop, float val
 */
 
 /* Return line number of error, or 0 if no catastrophic error has occurred. */
-typedef int (*getCaptureErrorLineProc)(unsigned int deviceno);
+typedef int (*getCaptureErrorLineProc)(size_t deviceno);
 /* Return HRESULT of the catastrophic error, or 0 if none. */
-typedef int (*getCaptureErrorCodeProc)(unsigned int deviceno);
+typedef int (*getCaptureErrorCodeProc)(size_t deviceno);
 
 /* initCaptureWithOptions allows additional options to be given. Otherwise it's identical with
  * initCapture
  */
-typedef int (*initCaptureWithOptionsProc)(unsigned int deviceno, struct SimpleCapParams* aParams,
+typedef int (*initCaptureWithOptionsProc)(size_t deviceno, struct SimpleCapParams* aParams,
                                           unsigned int aOptions);
 
 // Options accepted by above:
@@ -105,6 +108,7 @@ typedef int (*initCaptureWithOptionsProc)(unsigned int deviceno, struct SimpleCa
 
 #ifndef ESCAPI_DEFINITIONS_ONLY
 extern countCaptureDevicesProc countCaptureDevices;
+extern getCaptureDeviceIdsProc getCaptureDeviceIds;
 extern initCaptureProc initCapture;
 extern deinitCaptureProc deinitCapture;
 extern doCaptureProc doCapture;

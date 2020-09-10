@@ -10,7 +10,7 @@ BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserve
 }
 
 extern "C" void __declspec(dllexport)
-    getCaptureDeviceName(unsigned int deviceno, char* namebuffer, int bufferlength)
+	getCaptureDeviceName(size_t deviceno, char* namebuffer, int bufferlength)
 {
 	EscAPI::GetCaptureDeviceName(deviceno, namebuffer, bufferlength);
 }
@@ -26,10 +26,14 @@ extern "C" int __declspec(dllexport) ESCAPIVersion()
 	return 0x301; // ...and let's hope this one works better
 }
 
-extern "C" int __declspec(dllexport) countCaptureDevices()
+extern "C" size_t __declspec(dllexport) countCaptureDevices()
 {
-	int c = EscAPI::CountCaptureDevices();
-	return c;
+	return EscAPI::CountCaptureDevices();
+}
+
+extern "C" size_t __declspec(dllexport) getCaptureDeviceIds(size_t* buffer, size_t count)
+{
+	return EscAPI::GetCaptureDeviceIds(buffer, count);
 }
 
 extern "C" void __declspec(dllexport) initCOM()
@@ -38,7 +42,7 @@ extern "C" void __declspec(dllexport) initCOM()
 }
 
 extern "C" int __declspec(dllexport)
-    initCapture(unsigned int deviceno, struct SimpleCapParams* aParams)
+	initCapture(size_t deviceno, struct SimpleCapParams* aParams)
 {
 	if (aParams == NULL || aParams->mHeight <= 0 || aParams->mWidth <= 0 ||
 	    aParams->mTargetBuf == 0)
@@ -48,49 +52,49 @@ extern "C" int __declspec(dllexport)
 	return 1;
 }
 
-extern "C" void __declspec(dllexport) deinitCapture(unsigned int deviceno)
+extern "C" void __declspec(dllexport) deinitCapture(size_t deviceno)
 {
 	EscAPI::CleanupDevice(deviceno);
 }
 
-extern "C" void __declspec(dllexport) doCapture(unsigned int deviceno)
+extern "C" void __declspec(dllexport) doCapture(size_t deviceno)
 {
 	EscAPI::DoCapture(deviceno);
 }
 
-extern "C" int __declspec(dllexport) isCaptureDone(unsigned int deviceno)
+extern "C" int __declspec(dllexport) isCaptureDone(size_t deviceno)
 {
 	return EscAPI::IsCaptureDone(deviceno);
 }
 
-extern "C" int __declspec(dllexport) getCaptureErrorLine(unsigned int deviceno)
+extern "C" int __declspec(dllexport) getCaptureErrorLine(size_t deviceno)
 {
 	return EscAPI::GetErrorLine(deviceno);
 }
 
-extern "C" int __declspec(dllexport) getCaptureErrorCode(unsigned int deviceno)
+extern "C" int __declspec(dllexport) getCaptureErrorCode(size_t deviceno)
 {
 	return EscAPI::GetErrorCode(deviceno);
 }
 
-extern "C" float __declspec(dllexport) getCapturePropertyValue(unsigned int deviceno, int prop)
+extern "C" float __declspec(dllexport) getCapturePropertyValue(size_t deviceno, int prop)
 {
 	return EscAPI::GetProperty(deviceno, prop);
 }
 
-extern "C" int __declspec(dllexport) getCapturePropertyAuto(unsigned int deviceno, int prop)
+extern "C" int __declspec(dllexport) getCapturePropertyAuto(size_t deviceno, int prop)
 {
 	return EscAPI::GetPropertyAuto(deviceno, prop);
 }
 
 extern "C" int __declspec(dllexport)
-    setCaptureProperty(unsigned int deviceno, int prop, float value, int autoval)
+	setCaptureProperty(size_t deviceno, int prop, float value, int autoval)
 {
 	return EscAPI::SetProperty(deviceno, prop, value, autoval);
 }
 
 extern "C" int __declspec(dllexport)
-    initCaptureWithOptions(unsigned int deviceno, struct SimpleCapParams* aParams,
+    initCaptureWithOptions(size_t deviceno, struct SimpleCapParams* aParams,
                            unsigned int aOptions)
 {
 	if (aParams == NULL || aParams->mHeight <= 0 || aParams->mWidth <= 0 ||

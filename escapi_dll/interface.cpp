@@ -3,6 +3,7 @@
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
+#include <algorithm>
 
 #define ESCAPI_DEFINITIONS_ONLY
 #include "escapi.h"
@@ -36,11 +37,9 @@ int EscAPI::IsCaptureDone(size_t deviceno)
 
 void EscAPI::CleanupDevice(size_t aDevice)
 {
-	if (aDevice < sDeviceList.size())
-	{
-		sDeviceList.erase(aDevice);
-	}
+    sDeviceList.erase(aDevice);
 }
+
 HRESULT EscAPI::InitDevice(size_t aDevice, const struct SimpleCapParams* aParams,
                            unsigned int aOptions)
 {
@@ -89,6 +88,22 @@ size_t EscAPI::CountCaptureDevices()
 		return 0;
 
 	return param.mCount;
+}
+
+size_t EscAPI::GetCaptureDeviceIds(size_t *buffer, size_t count)
+{
+	if (!buffer)
+		return sDeviceList.size();
+	size_t pos = 0;
+	size_t used = std::min<size_t>(count, sDeviceList.size());
+	for (std::map<size_t, CaptureClass>::const_iterator it = sDeviceList.begin(); it != sDeviceList.end(); it++)
+	{
+		if (pos >= used)
+			break;
+		buffer[pos++] = it->first;
+	}
+
+	return used;
 }
 
 void EscAPI::GetCaptureDeviceName(size_t aDevice, char* aNamebuffer, int aBufferlength)
@@ -152,7 +167,7 @@ void EscAPI::GetCaptureDeviceName(size_t aDevice, char* aNamebuffer, int aBuffer
 
 bool EscAPI::CheckForFail(size_t aDevice)
 {
-	if (sDeviceList.size() <= aDevice)
+	if (sDeviceList.find(aDevice) == sDeviceList.end())
 		return false;
 
 	if (getDevice(aDevice).mRedoFromStart)
@@ -174,14 +189,14 @@ bool EscAPI::CheckForFail(size_t aDevice)
 
 int EscAPI::GetErrorCode(size_t aDevice)
 {
-	if (sDeviceList.size() <= aDevice)
+	if (sDeviceList.find(aDevice) == sDeviceList.end())
 		return 0;
 	return getDevice(aDevice).mErrorCode;
 }
 
 int EscAPI::GetErrorLine(size_t aDevice)
 {
-	if (sDeviceList.size() <= aDevice)
+	if (sDeviceList.find(aDevice) == sDeviceList.end())
 		return 0;
 	return getDevice(aDevice).mErrorLine;
 }

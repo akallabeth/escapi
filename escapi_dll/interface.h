@@ -12,6 +12,7 @@ class EscAPI
 	                          unsigned int opts);
 	static void CleanupDevice(size_t device);
 	static size_t CountCaptureDevices();
+	static size_t GetCaptureDeviceIds(size_t* buffer, size_t count);
 	static void GetCaptureDeviceName(size_t deviceno, char* namebuffer, int bufferlength);
 	static int GetErrorCode(size_t device);
 	static int GetErrorLine(size_t device);
