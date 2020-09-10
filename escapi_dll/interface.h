@@ -2,7 +2,7 @@
 
 #include <Windows.h>
 
-#include <vector>
+#include <map>
 #include "capture.h"
 
 class EscAPI {
@@ -23,6 +23,7 @@ private:
     static bool CheckForFail(size_t aDevice);
 
 private:
-    static std::vector<CaptureClass> sDeviceList;
+    static size_t sDeviceCount;
+    static std::map<size_t, CaptureClass> sDeviceList;
     static CaptureClass& getDevice(size_t device);
 };

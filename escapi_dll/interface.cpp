@@ -13,9 +13,10 @@
 #include "scopedrelease.h"
 #include "choosedeviceparam.h"
 
-#include <vector>
+#include <map>
 
-std::vector<CaptureClass> EscAPI::sDeviceList;
+std::map<size_t, CaptureClass> EscAPI::sDeviceList;
+size_t EscAPI::sDeviceCount = 0;
 
 void EscAPI::DoCapture(size_t deviceno)
 {
@@ -37,14 +38,16 @@ void EscAPI::CleanupDevice(size_t aDevice)
 {
     if (aDevice < sDeviceList.size())
 	{
-        sDeviceList.erase(sDeviceList.begin() + aDevice);
+        sDeviceList.erase(aDevice);
 	}
 }
 HRESULT EscAPI::InitDevice(size_t aDevice, const struct SimpleCapParams *aParams, unsigned int aOptions)
 {
     CleanupDevice(aDevice);
 
-    sDeviceList.push_back(CaptureClass());
+    std::pair<size_t, CaptureClass> pair = std::pair<size_t, CaptureClass>(sDeviceCount++, CaptureClass());
+
+    sDeviceList.insert(pair);
     HRESULT hr = getDevice(aDevice).initCapture(aDevice, aParams, aOptions);
 	if (FAILED(hr))
         CleanupDevice(aDevice);
@@ -109,7 +112,7 @@ void EscAPI::GetCaptureDeviceName(size_t aDevice, char * aNamebuffer, int aBuffe
         return;
 
 	// choose device
-	IMFAttributes *attributes = NULL;
+    IMFAttributes *attributes = nullptr;
 	hr = MFCreateAttributes(&attributes, 1);
 	ScopedRelease<IMFAttributes> attributes_s(attributes);
 

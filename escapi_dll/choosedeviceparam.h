@@ -6,7 +6,7 @@ struct ChooseDeviceParam
 	UINT32      mCount;          // Number of elements in the array.
 	UINT32      mSelection;      // Selected device, by array index.
 
-    ~ChooseDeviceParam()
+    virtual ~ChooseDeviceParam()
 	{
         UINT32 i;
 		for (i = 0; i < mCount; i++)
