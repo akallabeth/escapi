@@ -65,7 +65,9 @@ typedef void (*doCaptureProc)(size_t deviceno);
 typedef int (*isCaptureDoneProc)(size_t deviceno);
 
 /* Get the user-friendly name of a capture device. */
-typedef void (*getCaptureDeviceNameProc)(size_t deviceno, char* namebuffer, size_t bufferlength);
+typedef size_t (*getCaptureDeviceNameProc)(size_t deviceno, char* namebuffer, size_t bufferlength);
+typedef size_t (*getCaptureDeviceNameWProc)(size_t deviceno, wchar_t* namebuffer,
+                                            size_t bufferlength);
 
 /* Returns the ESCAPI DLL version. 0x200 for 2.0 */
 typedef int (*ESCAPIVersionProc)(void);
@@ -118,6 +120,7 @@ extern deinitCaptureProc deinitCapture;
 extern doCaptureProc doCapture;
 extern isCaptureDoneProc isCaptureDone;
 extern getCaptureDeviceNameProc getCaptureDeviceName;
+extern getCaptureDeviceNameWProc getCaptureDeviceNameW;
 extern ESCAPIVersionProc ESCAPIVersion;
 extern getCapturePropertyValueProc getCapturePropertyValue;
 extern getCapturePropertyAutoProc getCapturePropertyAuto;

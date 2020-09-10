@@ -9,6 +9,7 @@ deinitCaptureProc deinitCapture;
 doCaptureProc doCapture;
 isCaptureDoneProc isCaptureDone;
 getCaptureDeviceNameProc getCaptureDeviceName;
+getCaptureDeviceNameWProc getCaptureDeviceNameW;
 ESCAPIVersionProc ESCAPIVersion;
 getCapturePropertyValueProc getCapturePropertyValue;
 getCapturePropertyAutoProc getCapturePropertyAuto;
@@ -39,6 +40,8 @@ size_t setupESCAPI(void)
 	isCaptureDone           = reinterpret_cast<isCaptureDoneProc>(GetProcAddress(capdll, "isCaptureDone"));
 	initCOM                 = reinterpret_cast<initCOMProc>(GetProcAddress(capdll, "initCOM"));
 	getCaptureDeviceName    = reinterpret_cast<getCaptureDeviceNameProc>(GetProcAddress(capdll, "getCaptureDeviceName"));
+	getCaptureDeviceNameW = reinterpret_cast<getCaptureDeviceNameWProc>(
+	    GetProcAddress(capdll, "getCaptureDeviceNameW"));
 	ESCAPIVersion           = reinterpret_cast<ESCAPIVersionProc>(GetProcAddress(capdll, "ESCAPIVersion"));
 	getCapturePropertyValue = reinterpret_cast<getCapturePropertyValueProc>(GetProcAddress(capdll, "getCapturePropertyValue"));
 	getCapturePropertyAuto  = reinterpret_cast<getCapturePropertyAutoProc>(GetProcAddress(capdll, "getCapturePropertyAuto"));
@@ -49,12 +52,13 @@ size_t setupESCAPI(void)
 
 	/* Check that we got all the entry points */
 	if ((initCOM == nullptr) || (ESCAPIVersion == nullptr) || (getCaptureDeviceName == nullptr) ||
-	    (getCaptureDeviceIds == nullptr) || (getCaptureSupportedResolutions == nullptr) ||
-	    (countCaptureDevices == nullptr) || (initCapture == nullptr) ||
-	    (deinitCapture == nullptr) || (doCapture == nullptr) || (isCaptureDone == nullptr) ||
-	    (getCapturePropertyValue == nullptr) || (getCapturePropertyAuto == nullptr) ||
-	    (setCaptureProperty == nullptr) || (getCaptureErrorLine == nullptr) ||
-	    (getCaptureErrorCode == nullptr) || (initCaptureWithOptions == nullptr))
+	    (getCaptureDeviceNameW == nullptr) || (getCaptureDeviceIds == nullptr) ||
+	    (getCaptureSupportedResolutions == nullptr) || (countCaptureDevices == nullptr) ||
+	    (initCapture == nullptr) || (deinitCapture == nullptr) || (doCapture == nullptr) ||
+	    (isCaptureDone == nullptr) || (getCapturePropertyValue == nullptr) ||
+	    (getCapturePropertyAuto == nullptr) || (setCaptureProperty == nullptr) ||
+	    (getCaptureErrorLine == nullptr) || (getCaptureErrorCode == nullptr) ||
+	    (initCaptureWithOptions == nullptr))
 		return 0;
 
 	/* Verify DLL version is at least what we want */

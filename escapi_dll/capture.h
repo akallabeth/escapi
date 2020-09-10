@@ -51,6 +51,9 @@ class CaptureClass : public IMFSourceReaderCallback
 
 	void deinitCapture();
 
+	std::wstring name();
+	std::string cname();
+
   public:
 	int mRedoFromStart;
 	int gDoCapture;

@@ -9,10 +9,16 @@ BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserve
 	return TRUE;
 }
 
-extern "C" void __declspec(dllexport)
-	getCaptureDeviceName(size_t deviceno, char* namebuffer, int bufferlength)
+extern "C" size_t __declspec(dllexport)
+    getCaptureDeviceName(size_t deviceno, char* namebuffer, size_t bufferlength)
 {
-	EscAPI::GetCaptureDeviceName(deviceno, namebuffer, bufferlength);
+	return EscAPI::GetCaptureDeviceName(deviceno, namebuffer, bufferlength);
+}
+
+extern "C" size_t __declspec(dllexport)
+    getCaptureDeviceNameW(size_t deviceno, wchar_t* namebuffer, size_t bufferlength)
+{
+	return EscAPI::GetCaptureDeviceNameW(deviceno, namebuffer, bufferlength);
 }
 
 extern "C" int __declspec(dllexport) ESCAPIDLLVersion()

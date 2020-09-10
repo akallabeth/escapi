@@ -124,63 +124,28 @@ size_t EscAPI::GetCaptureDeviceIds(size_t *buffer, size_t count)
 	return used;
 }
 
-void EscAPI::GetCaptureDeviceName(size_t aDevice, char* aNamebuffer, int aBufferlength)
+size_t EscAPI::GetCaptureDeviceName(size_t aDevice, char* aNamebuffer, size_t aBufferlength)
 {
-	int i;
-	if (!aNamebuffer || aBufferlength <= 0)
-		return;
+	if (sDeviceList.find(aDevice) == sDeviceList.end())
+		return 0;
+	if (aBufferlength < 1)
+		return 0;
+	std::string name = getDevice(aDevice).cname();
+	size_t used = std::min<size_t>(name.size(), aBufferlength - 1);
+	strcpy_s(aNamebuffer, used + 1, name.c_str());
+	return used;
+}
 
-	aNamebuffer[0] = 0;
-
-	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-
-	if (FAILED(hr))
-		return;
-
-	hr = MFStartup(MF_VERSION);
-
-	if (FAILED(hr))
-		return;
-
-	// choose device
-	IMFAttributes* attributes = nullptr;
-	hr = MFCreateAttributes(&attributes, 1);
-	ScopedRelease<IMFAttributes> attributes_s(attributes);
-
-	if (FAILED(hr))
-		return;
-
-	hr = attributes->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
-	                         MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
-
-	if (FAILED(hr))
-		return;
-
-	ChooseDeviceParam param = {};
-	hr = MFEnumDeviceSources(attributes, &param.mDevices, &param.mCount);
-
-	if (FAILED(hr))
-		return;
-
-	if (aDevice < param.mCount)
-	{
-		WCHAR* name = 0;
-		UINT32 namelen = 255;
-		hr = param.mDevices[aDevice]->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME,
-		                                                 &name, &namelen);
-		if (SUCCEEDED(hr) && name)
-		{
-			i = 0;
-			while (i < aBufferlength - 1 && i < (signed)namelen && name[i] != 0)
-			{
-				aNamebuffer[i] = (char)name[i];
-				i++;
-			}
-			aNamebuffer[i] = 0;
-
-			CoTaskMemFree(name);
-		}
-	}
+size_t EscAPI::GetCaptureDeviceNameW(size_t aDevice, wchar_t* aNamebuffer, size_t aBufferlength)
+{
+	if (sDeviceList.find(aDevice) == sDeviceList.end())
+		return 0;
+	if (aBufferlength < 1)
+		return 0;
+	std::wstring name = getDevice(aDevice).name();
+	size_t used = std::min<size_t>(name.size(), aBufferlength - 1);
+	wcscpy_s(aNamebuffer, used + 1, name.c_str());
+	return used;
 }
 
 bool EscAPI::CheckForFail(size_t aDevice)

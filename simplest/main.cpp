@@ -24,6 +24,12 @@ int main()
 		return -1;
 	}
 
+	char cname[64] = {};
+	size_t clen = getCaptureDeviceName(ids[0], cname, 64);
+
+	wchar_t wname[64] = {};
+	size_t wlen = getCaptureDeviceNameW(ids[0], wname, 64);
+
 	size_t widths[64] = {};
 	size_t heights[64] = {};
 	size_t count = getCaptureSupportedResolutions(ids[0], widths, heights, 64);

@@ -4,6 +4,8 @@
 #include <mfidl.h>
 #include <mfreadwrite.h>
 #include <mferror.h>
+#include <locale>
+#include <codecvt>
 
 #include <shlwapi.h> // QITAB and friends
 #include <objbase.h> // IID_PPV_ARGS and friends
@@ -752,4 +754,65 @@ void CaptureClass::deinitCapture()
 	mCaptureBuffer = nullptr;
 
 	LeaveCriticalSection(&mCritsec);
+}
+
+std::wstring CaptureClass::name()
+{
+	std::wstring cname;
+
+	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
+	if (FAILED(hr))
+		return cname;
+
+	hr = MFStartup(MF_VERSION);
+
+	if (FAILED(hr))
+		return cname;
+
+	// choose device
+	IMFAttributes* attributes = nullptr;
+	hr = MFCreateAttributes(&attributes, 1);
+	ScopedRelease<IMFAttributes> attributes_s(attributes);
+
+	if (FAILED(hr))
+		return cname;
+
+	hr = attributes->SetGUID(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE,
+	                         MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_GUID);
+
+	if (FAILED(hr))
+		return cname;
+
+	ChooseDeviceParam param = {};
+	hr = MFEnumDeviceSources(attributes, &param.mDevices, &param.mCount);
+
+	if (FAILED(hr))
+		return cname;
+
+	if (deviceindex < param.mCount)
+	{
+		WCHAR* name = 0;
+		UINT32 namelen = 255;
+		hr = param.mDevices[deviceindex]->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME,
+		                                                     &name, &namelen);
+		if (SUCCEEDED(hr) && name)
+		{
+			for (size_t x = 0; x < namelen; x++)
+				cname += name[x];
+
+			CoTaskMemFree(name);
+		}
+	}
+	return cname;
+}
+
+std::string CaptureClass::cname()
+{
+	const std::wstring wname = name();
+	using convert_type = std::codecvt_utf8<wchar_t>;
+	std::wstring_convert<convert_type, wchar_t> converter;
+
+	// use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
+	return converter.to_bytes(wname);
 }
