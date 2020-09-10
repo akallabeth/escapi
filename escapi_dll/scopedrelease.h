@@ -2,13 +2,13 @@
 
 template <class T> class ScopedRelease
 {
-public:
-	T *mVar;
-	ScopedRelease(T * aVar)
+  public:
+	T* mVar;
+	ScopedRelease(T* aVar)
 	{
 		mVar = aVar;
 	}
-    virtual ~ScopedRelease()
+	virtual ~ScopedRelease()
 	{
 		if (mVar != 0)
 			mVar->Release();

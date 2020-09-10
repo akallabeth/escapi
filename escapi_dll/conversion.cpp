@@ -3,41 +3,25 @@
 #include <mfapi.h>
 #include "conversion.h"
 
-
-ConversionFunction gFormatConversions[] =
-{
-	{ MFVideoFormat_RGB32, TransformImage_RGB32 },
-	{ MFVideoFormat_RGB24, TransformImage_RGB24 },
-	{ MFVideoFormat_YUY2, TransformImage_YUY2 },
-	{ MFVideoFormat_NV12, TransformImage_NV12 }
-};
+ConversionFunction gFormatConversions[] = { { MFVideoFormat_RGB32, TransformImage_RGB32 },
+	                                        { MFVideoFormat_RGB24, TransformImage_RGB24 },
+	                                        { MFVideoFormat_YUY2, TransformImage_YUY2 },
+	                                        { MFVideoFormat_NV12, TransformImage_NV12 } };
 
 const DWORD gConversionFormats = 4;
 
-
-
-void TransformImage_RGB24(
-	BYTE*       aDest,
-	LONG        aDestStride,
-	const BYTE* aSrc,
-	LONG        aSrcStride,
-	DWORD       aWidthInPixels,
-	DWORD       aHeightInPixels
-	)
+void TransformImage_RGB24(BYTE* aDest, LONG aDestStride, const BYTE* aSrc, LONG aSrcStride,
+                          DWORD aWidthInPixels, DWORD aHeightInPixels)
 {
 	for (DWORD y = 0; y < aHeightInPixels; y++)
 	{
-		RGBTRIPLE *srcPel = (RGBTRIPLE*)aSrc;
-		DWORD *destPel = (DWORD*)aDest;
+		RGBTRIPLE* srcPel = (RGBTRIPLE*)aSrc;
+		DWORD* destPel = (DWORD*)aDest;
 
 		for (DWORD x = 0; x < aWidthInPixels; x++)
 		{
-			destPel[x] = (
-				(srcPel[x].rgbtRed << 16) |
-				(srcPel[x].rgbtGreen << 8) |
-				(srcPel[x].rgbtBlue << 0) |
-				(0xff << 24)
-				);
+			destPel[x] = ((srcPel[x].rgbtRed << 16) | (srcPel[x].rgbtGreen << 8) |
+			              (srcPel[x].rgbtBlue << 0) | (0xff << 24));
 		}
 
 		aSrc += aSrcStride;
@@ -45,30 +29,18 @@ void TransformImage_RGB24(
 	}
 }
 
-
-void TransformImage_RGB32(
-	BYTE*       aDest,
-	LONG        aDestStride,
-	const BYTE* aSrc,
-	LONG        aSrcStride,
-	DWORD       aWidthInPixels,
-	DWORD       aHeightInPixels
-	)
+void TransformImage_RGB32(BYTE* aDest, LONG aDestStride, const BYTE* aSrc, LONG aSrcStride,
+                          DWORD aWidthInPixels, DWORD aHeightInPixels)
 {
 	MFCopyImage(aDest, aDestStride, aSrc, aSrcStride, aWidthInPixels * 4, aHeightInPixels);
 }
-
 
 __forceinline BYTE Clip(int aClr)
 {
 	return (BYTE)(aClr < 0 ? 0 : (aClr > 255 ? 255 : aClr));
 }
 
-__forceinline RGBQUAD ConvertYCrCbToRGB(
-	int aY,
-	int aCr,
-	int aCb
-	)
+__forceinline RGBQUAD ConvertYCrCbToRGB(int aY, int aCr, int aCb)
 {
 	RGBQUAD rgbq;
 
@@ -83,20 +55,13 @@ __forceinline RGBQUAD ConvertYCrCbToRGB(
 	return rgbq;
 }
 
-
-void TransformImage_YUY2(
-	BYTE*       aDest,
-	LONG        aDestStride,
-	const BYTE* aSrc,
-	LONG        aSrcStride,
-	DWORD       aWidthInPixels,
-	DWORD       aHeightInPixels
-	)
+void TransformImage_YUY2(BYTE* aDest, LONG aDestStride, const BYTE* aSrc, LONG aSrcStride,
+                         DWORD aWidthInPixels, DWORD aHeightInPixels)
 {
 	for (DWORD y = 0; y < aHeightInPixels; y++)
 	{
-		RGBQUAD *destPel = (RGBQUAD*)aDest;
-		WORD    *srcPel = (WORD*)aSrc;
+		RGBQUAD* destPel = (RGBQUAD*)aDest;
+		WORD* srcPel = (WORD*)aSrc;
 
 		for (DWORD x = 0; x < aWidthInPixels; x += 2)
 		{
@@ -114,19 +79,10 @@ void TransformImage_YUY2(
 		aSrc += aSrcStride;
 		aDest += aDestStride;
 	}
-
 }
 
-
-
-void TransformImage_NV12(
-	BYTE* aDst,
-	LONG aDstStride,
-	const BYTE* aSrc,
-	LONG aSrcStride,
-	DWORD aWidthInPixels,
-	DWORD aHeightInPixels
-	)
+void TransformImage_NV12(BYTE* aDst, LONG aDstStride, const BYTE* aSrc, LONG aSrcStride,
+                         DWORD aWidthInPixels, DWORD aHeightInPixels)
 {
 	const BYTE* bitsY = aSrc;
 	const BYTE* bitsCb = bitsY + (aHeightInPixels * aSrcStride);
@@ -144,12 +100,12 @@ void TransformImage_NV12(
 
 		for (UINT x = 0; x < aWidthInPixels; x += 2)
 		{
-			int  y0 = (int)lineY1[0];
-			int  y1 = (int)lineY1[1];
-			int  y2 = (int)lineY2[0];
-			int  y3 = (int)lineY2[1];
-			int  cb = (int)lineCb[0];
-			int  cr = (int)lineCr[0];
+			int y0 = (int)lineY1[0];
+			int y1 = (int)lineY1[1];
+			int y2 = (int)lineY2[0];
+			int y3 = (int)lineY2[1];
+			int cb = (int)lineCb[0];
+			int cr = (int)lineCr[0];
 
 			RGBQUAD r = ConvertYCrCbToRGB(y0, cr, cb);
 			dibLine1[0] = r.rgbBlue;

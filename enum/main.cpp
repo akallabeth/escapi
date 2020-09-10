@@ -19,5 +19,4 @@ void main()
 		getCaptureDeviceName(i, temp, 256);
 		printf("Device %d: \"%s\"\n", i, temp);
 	}
-
 }

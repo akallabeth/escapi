@@ -8,14 +8,14 @@
 #include "stb_image.h"
 
 // SDL stuff
-SDL_Window *gSdlWindow;
-SDL_Renderer *gSdlRenderer;
-SDL_Texture *gSdlScreenTexture;
-unsigned int *gSdlScreenPixels;
+SDL_Window* gSdlWindow;
+SDL_Renderer* gSdlRenderer;
+SDL_Texture* gSdlScreenTexture;
+unsigned int* gSdlScreenPixels;
 
 // Font used to print device names
 int font_x, font_y, font_comp;
-unsigned int *font = 0;
+unsigned int* font = 0;
 
 // Capture structures
 struct SimpleCapParams capture[4];
@@ -29,13 +29,16 @@ char devicenames[4][24] = { "device 1", "device 2", "device 3", "device 4" };
 unsigned int saturated_add(int aPix1, int aPix2)
 {
 	int r = ((aPix1 >> 0) & 0xff) + ((aPix2 >> 0) & 0xff);
-	if (r > 0xff) r = 0xff;
+	if (r > 0xff)
+		r = 0xff;
 
 	int g = ((aPix1 >> 8) & 0xff) + ((aPix2 >> 8) & 0xff);
-	if (g > 0xff) g = 0xff;
+	if (g > 0xff)
+		g = 0xff;
 
 	int b = ((aPix1 >> 16) & 0xff) + ((aPix2 >> 16) & 0xff);
-	if (b > 0xff) b = 0xff;
+	if (b > 0xff)
+		b = 0xff;
 
 	return 0xff000000 | (b << 16) | (g << 8) | (r << 0);
 }
@@ -43,18 +46,19 @@ unsigned int saturated_add(int aPix1, int aPix2)
 unsigned int saturated_sub(int aPix1, int aPix2)
 {
 	int r = ((aPix1 >> 0) & 0xff) - ((aPix2 >> 0) & 0xff);
-	if (r < 0) r = 0;
+	if (r < 0)
+		r = 0;
 
 	int g = ((aPix1 >> 8) & 0xff) - ((aPix2 >> 8) & 0xff);
-	if (g < 0) g = 0;
+	if (g < 0)
+		g = 0;
 
 	int b = ((aPix1 >> 16) & 0xff) - ((aPix2 >> 16) & 0xff);
-	if (b < 0) b = 0;
+	if (b < 0)
+		b = 0;
 
 	return 0xff000000 | (b << 16) | (g << 8) | (r << 0);
-
 }
-
 
 // Simple printer, draws one character, used by drawstring()
 void drawchar(char ch, int x, int y)
@@ -74,7 +78,7 @@ void drawchar(char ch, int x, int y)
 }
 
 // Simple way to print text strings.
-void drawstring(char * string, int x, int y)
+void drawstring(char* string, int x, int y)
 {
 	if (!font) // Don't crash if font wasn't loaded
 		return;
@@ -127,15 +131,12 @@ void render()
 	SDL_UpdateTexture(gSdlScreenTexture, NULL, gSdlScreenPixels, 640 * sizeof(Uint32));
 	SDL_RenderCopy(gSdlRenderer, gSdlScreenTexture, NULL, NULL);
 
-
 	// Tell SDL to update the whole gSdlScreenTexture
 	SDL_RenderPresent(gSdlRenderer);
-
 }
 
-
 // Entry point
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
 	// Initialize SDL's subsystems - in this case, only video.
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
@@ -172,11 +173,8 @@ int main(int argc, char *argv[])
 	}
 
 	// Attempt to create a 640x480 gSdlWindow with 32bit gSdlScreenPixels.
-	gSdlWindow = SDL_CreateWindow(
-		"ESCAPI MultiCap",
-		SDL_WINDOWPOS_UNDEFINED,
-		SDL_WINDOWPOS_UNDEFINED,
-		640, 480, 0);
+	gSdlWindow = SDL_CreateWindow("ESCAPI MultiCap", SDL_WINDOWPOS_UNDEFINED,
+	                              SDL_WINDOWPOS_UNDEFINED, 640, 480, 0);
 
 	// If we fail, return error.
 	if (gSdlWindow == NULL)
@@ -187,15 +185,13 @@ int main(int argc, char *argv[])
 
 	gSdlRenderer = SDL_CreateRenderer(gSdlWindow, -1, 0);
 
-	gSdlScreenTexture = SDL_CreateTexture(gSdlRenderer,
-		SDL_PIXELFORMAT_ARGB8888,
-		SDL_TEXTUREACCESS_STREAMING,
-		640, 480);
+	gSdlScreenTexture = SDL_CreateTexture(gSdlRenderer, SDL_PIXELFORMAT_ARGB8888,
+	                                      SDL_TEXTUREACCESS_STREAMING, 640, 480);
 
 	gSdlScreenPixels = new unsigned int[640 * 480];
 
 	// load font
-	font = (unsigned int *)stbi_load("font14x24.png", &font_x, &font_y, &font_comp, 4);
+	font = (unsigned int*)stbi_load("font14x24.png", &font_x, &font_y, &font_comp, 4);
 
 	// Main loop: loop forever.
 	while (1)
@@ -209,23 +205,22 @@ int main(int argc, char *argv[])
 		{
 			switch (event.type)
 			{
-			case SDL_KEYDOWN:
-				break;
-			case SDL_KEYUP:
-				// If escape is pressed, return (and thus, quit)
-				if (event.key.keysym.sym == SDLK_ESCAPE)
-				{
-					int k;
-					for (k = 0; k < devices; k++)
-						deinitCapture(k);
-					return 0;
-				}
-				break;
-			case SDL_QUIT:
-				return(0);
+				case SDL_KEYDOWN:
+					break;
+				case SDL_KEYUP:
+					// If escape is pressed, return (and thus, quit)
+					if (event.key.keysym.sym == SDLK_ESCAPE)
+					{
+						int k;
+						for (k = 0; k < devices; k++)
+							deinitCapture(k);
+						return 0;
+					}
+					break;
+				case SDL_QUIT:
+					return (0);
 			}
 		}
 	}
 	return 0;
 }
-

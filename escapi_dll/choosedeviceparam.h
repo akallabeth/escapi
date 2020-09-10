@@ -2,13 +2,13 @@
 
 struct ChooseDeviceParam
 {
-	IMFActivate **mDevices;    // Array of IMFActivate pointers.
-	UINT32      mCount;          // Number of elements in the array.
-	UINT32      mSelection;      // Selected device, by array index.
+	IMFActivate** mDevices; // Array of IMFActivate pointers.
+	UINT32 mCount;          // Number of elements in the array.
+	UINT32 mSelection;      // Selected device, by array index.
 
-    virtual ~ChooseDeviceParam()
+	virtual ~ChooseDeviceParam()
 	{
-        UINT32 i;
+		UINT32 i;
 		for (i = 0; i < mCount; i++)
 		{
 			if (mDevices[i])

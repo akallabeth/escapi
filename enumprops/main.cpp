@@ -5,12 +5,12 @@
 void printprop(int device, int prop, const char* propname)
 {
 	float v = getCapturePropertyValue(device, prop);
-	if (v < 0) 
-	{ 
-		printf("   (n/a) %s\n", propname); 
-	} 
-	else 
-	{ 
+	if (v < 0)
+	{
+		printf("   (n/a) %s\n", propname);
+	}
+	else
+	{
 		int a = getCapturePropertyAuto(device, prop);
 		printf("%7.2f%% %s%s\n", v * 100, propname, a ? " (Auto)" : "");
 	}
@@ -48,7 +48,7 @@ void main()
 		else
 		{
 #define PRINTPROP(x) printprop(i, x, #x);
-			PRINTPROP(CAPTURE_BRIGHTNESS);			
+			PRINTPROP(CAPTURE_BRIGHTNESS);
 			PRINTPROP(CAPTURE_CONTRAST);
 			PRINTPROP(CAPTURE_HUE);
 			PRINTPROP(CAPTURE_SATURATION);
