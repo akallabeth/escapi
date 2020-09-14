@@ -49,9 +49,9 @@ extern "C" size_t __declspec(dllexport) getCaptureDeviceIds(size_t* buffer, size
 }
 
 extern "C" size_t __declspec(dllexport)
-    getCaptureSupportedResolutions(size_t deviceno, size_t* widths, size_t* heights, size_t count)
+    getCaptureSupportedFormatsAndResolutions(size_t deviceno, SimpleFormat* formats, size_t* widths, size_t* heights, size_t count)
 {
-	return EscAPI::GetSupportedResolutions(deviceno, widths, heights, count);
+    return EscAPI::GetSupportedFormatsAndResolutions(deviceno, formats, widths, heights, count);
 }
 
 extern "C" void __declspec(dllexport) initCOM()
@@ -95,18 +95,33 @@ extern "C" int __declspec(dllexport) getCaptureErrorCode(size_t deviceno)
 	return EscAPI::GetErrorCode(deviceno);
 }
 
-extern "C" float __declspec(dllexport) getCapturePropertyValue(size_t deviceno, int prop)
+extern "C" size_t __declspec(dllexport) getCapturePropertyList(size_t deviceno, CAPTURE_PROPETIES* prop, size_t count)
+{
+	return EscAPI::GetPropertyList(deviceno, prop, count);
+}
+
+extern "C" float __declspec(dllexport) getCapturePropertyValue(size_t deviceno, CAPTURE_PROPETIES prop)
 {
 	return EscAPI::GetProperty(deviceno, prop);
 }
 
-extern "C" int __declspec(dllexport) getCapturePropertyAuto(size_t deviceno, int prop)
+extern "C" float __declspec(dllexport) getCapturePropertyMin(size_t deviceno, CAPTURE_PROPETIES prop)
+{
+	return EscAPI::GetProperty(deviceno, prop);
+}
+
+extern "C" float __declspec(dllexport) getCapturePropertyMax(size_t deviceno, CAPTURE_PROPETIES prop)
+{
+	return EscAPI::GetProperty(deviceno, prop);
+}
+
+extern "C" int __declspec(dllexport) getCapturePropertyAuto(size_t deviceno, CAPTURE_PROPETIES prop)
 {
 	return EscAPI::GetPropertyAuto(deviceno, prop);
 }
 
 extern "C" int __declspec(dllexport)
-	setCaptureProperty(size_t deviceno, int prop, float value, int autoval)
+	setCaptureProperty(size_t deviceno, CAPTURE_PROPETIES prop, float value, int autoval)
 {
 	return EscAPI::SetProperty(deviceno, prop, value, autoval);
 }

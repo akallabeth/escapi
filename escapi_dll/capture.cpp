@@ -225,7 +225,7 @@ STDMETHODIMP CaptureClass::OnFlush(DWORD)
 	return S_OK;
 }
 
-int CaptureClass::escapiPropToMFProp(int aProperty)
+int CaptureClass::escapiPropToMFProp(CAPTURE_PROPETIES aProperty)
 {
 	int prop = 0;
 	switch (aProperty)
@@ -286,7 +286,7 @@ int CaptureClass::escapiPropToMFProp(int aProperty)
 	return prop;
 }
 
-int CaptureClass::setProperty(int aProperty, float aValue, int aAuto)
+int CaptureClass::setProperty(CAPTURE_PROPETIES aProperty, float aValue, int aAuto)
 {
 	HRESULT hr;
 	IAMVideoProcAmp* procAmp = nullptr;
@@ -338,7 +338,7 @@ int CaptureClass::setProperty(int aProperty, float aValue, int aAuto)
 	return 1;
 }
 
-int CaptureClass::getProperty(int aProperty, float& aValue, int& aAuto)
+int CaptureClass::getProperty(CAPTURE_PROPETIES aProperty, float& aValue, int& aAuto, float& fmin, float& fmax)
 {
 	HRESULT hr;
 	IAMVideoProcAmp* procAmp = nullptr;
@@ -365,6 +365,8 @@ int CaptureClass::getProperty(int aProperty, float& aValue, int& aAuto)
 				{
 					aValue = (v - min) / (float)(max - min);
 					aAuto = !!(f & VideoProcAmp_Flags_Auto);
+					fmin = min;
+					fmax = max;
 				}
 			}
 			procAmp->Release();
@@ -395,6 +397,30 @@ int CaptureClass::getProperty(int aProperty, float& aValue, int& aAuto)
 	}
 
 	return 1;
+}
+
+std::vector<CAPTURE_PROPETIES> CaptureClass::getPropertyList()
+{
+	std::vector<CAPTURE_PROPETIES> list;
+	list.push_back(CAPTURE_BRIGHTNESS);
+	list.push_back(CAPTURE_CONTRAST);
+	list.push_back(CAPTURE_HUE);
+	list.push_back(CAPTURE_SATURATION);
+	list.push_back(CAPTURE_SHARPNESS);
+	list.push_back(CAPTURE_GAMMA);
+	list.push_back(CAPTURE_COLORENABLE);
+	list.push_back(CAPTURE_WHITEBALANCE);
+	list.push_back(CAPTURE_BACKLIGHTCOMPENSATION);
+	list.push_back(CAPTURE_GAIN);
+	list.push_back(CAPTURE_PAN);
+	list.push_back(CAPTURE_TILT);
+	list.push_back(CAPTURE_ROLL);
+	list.push_back(CAPTURE_ZOOM);
+	list.push_back(CAPTURE_EXPOSURE);
+	list.push_back(CAPTURE_IRIS);
+	list.push_back(CAPTURE_FOCUS);
+	list.push_back(CAPTURE_PROP_MAX);
+	return list;
 }
 
 BOOL CaptureClass::isFormatSupported(REFGUID aSubtype) const
@@ -440,18 +466,43 @@ HRESULT CaptureClass::setConversionFunction(REFGUID aSubtype)
 	return MF_E_INVALIDMEDIATYPE;
 }
 
-HRESULT CaptureClass::setVideoType(IMFMediaType* aType)
+HRESULT CaptureClass::setVideoType(SimpleFormat type, IMFMediaType* aType)
 {
 	HRESULT hr = S_OK;
 	GUID subtype = {};
+	GUID nsubtype = {};
 
 	// Find the video subtype.
-	hr = aType->GetGUID(MF_MT_SUBTYPE, &subtype);
+	hr = aType->GetGUID(MF_MT_SUBTYPE, &nsubtype);
 
 	DO_OR_DIE;
 
-	// Choose a conversion function.
-	// (This also validates the format type.)
+	switch(type) {
+		case H264:
+			subtype = MFVideoFormat_H264;
+			break;
+		case MJPG:
+			subtype = MFVideoFormat_MJPG;
+			break;
+		case YUY2:
+			subtype = MFVideoFormat_YUY2;
+			break;
+		case NV12:
+			subtype = MFVideoFormat_NV12;
+			break;
+		case I420:
+			subtype = MFVideoFormat_I420;
+			break;
+		case RGB24:
+			subtype = MFVideoFormat_RGB24;
+			break;
+		case RGB32:
+			subtype = MFVideoFormat_RGB32;
+			break;
+		default:
+			subtype = nsubtype;
+			break;
+	}
 
 	hr = setConversionFunction(subtype);
 
@@ -664,12 +715,12 @@ HRESULT CaptureClass::initCapture(const struct SimpleCapParams* aParams, unsigne
 	DO_OR_DIE_CRITSECTION;
 
 	LeaveCriticalSection(&mCritsec);
-	changeResolution(gParams.mWidth, gParams.mHeight);
+	changeResolution(gParams.Format, gParams.mWidth, gParams.mHeight);
 
 	return 0;
 }
 
-bool CaptureClass::changeResolution(size_t width, size_t height)
+bool CaptureClass::changeResolution(SimpleFormat format, size_t width, size_t height)
 {
 	HRESULT hr;
 	IMFMediaType* type = nullptr;
@@ -687,9 +738,9 @@ bool CaptureClass::changeResolution(size_t width, size_t height)
 
 	DO_OR_DIE_CRITSECTION;
 
-	hr = setVideoType(type);
+		hr = setVideoType(format, type);
 
-	DO_OR_DIE_CRITSECTION;
+		DO_OR_DIE_CRITSECTION;
 
 	hr = mReader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, nullptr, type);
 

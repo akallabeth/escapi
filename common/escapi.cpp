@@ -4,7 +4,7 @@
 setCaptureDeviceHotplugFunctionProc setCaptureDeviceHotplugFunction;
 countCaptureDevicesProc countCaptureDevices;
 getCaptureDeviceIdsProc getCaptureDeviceIds;
-getCaptureSupportedResolutionsProc getCaptureSupportedResolutions;
+getCaptureSupportedFormatsAndResolutionsProc getCaptureSupportedFormatsAndResolutions;
 initCaptureProc initCapture;
 deinitCaptureProc deinitCapture;
 doCaptureProc doCapture;
@@ -12,7 +12,10 @@ isCaptureDoneProc isCaptureDone;
 getCaptureDeviceNameProc getCaptureDeviceName;
 getCaptureDeviceNameWProc getCaptureDeviceNameW;
 ESCAPIVersionProc ESCAPIVersion;
+getCapturePropertyListProc getCapturePropertyList;
 getCapturePropertyValueProc getCapturePropertyValue;
+getCapturePropertyMinProc getCapturePropertyMin;
+getCapturePropertyMaxProc getCapturePropertyMax;
 getCapturePropertyAutoProc getCapturePropertyAuto;
 setCapturePropertyProc setCaptureProperty;
 getCaptureErrorLineProc getCaptureErrorLine;
@@ -31,42 +34,87 @@ size_t setupESCAPI(hotplug_event_t fkt, void* context)
 		return 0;
 
 	/* Fetch function entry points */
-	countCaptureDevices     = reinterpret_cast<countCaptureDevicesProc>(GetProcAddress(capdll, "countCaptureDevices"));
-	setCaptureDeviceHotplugFunction = reinterpret_cast<setCaptureDeviceHotplugFunctionProc>(
-	    GetProcAddress(capdll, "setCaptureDeviceHotplugFunction"));
-
-	getCaptureDeviceIds     = reinterpret_cast<getCaptureDeviceIdsProc>(GetProcAddress(capdll, "getCaptureDeviceIds"));
-	getCaptureSupportedResolutions = reinterpret_cast<getCaptureSupportedResolutionsProc>(
-	    GetProcAddress(capdll, "getCaptureSupportedResolutions"));
-	initCapture             = reinterpret_cast<initCaptureProc>(GetProcAddress(capdll, "initCapture"));
-	deinitCapture           = reinterpret_cast<deinitCaptureProc>(GetProcAddress(capdll, "deinitCapture"));
-	doCapture               = reinterpret_cast<doCaptureProc>(GetProcAddress(capdll, "doCapture"));
-	isCaptureDone           = reinterpret_cast<isCaptureDoneProc>(GetProcAddress(capdll, "isCaptureDone"));
-	initCOM                 = reinterpret_cast<initCOMProc>(GetProcAddress(capdll, "initCOM"));
-	getCaptureDeviceName    = reinterpret_cast<getCaptureDeviceNameProc>(GetProcAddress(capdll, "getCaptureDeviceName"));
-	getCaptureDeviceNameW = reinterpret_cast<getCaptureDeviceNameWProc>(
-	    GetProcAddress(capdll, "getCaptureDeviceNameW"));
 	ESCAPIVersion           = reinterpret_cast<ESCAPIVersionProc>(GetProcAddress(capdll, "ESCAPIVersion"));
-	getCapturePropertyValue = reinterpret_cast<getCapturePropertyValueProc>(GetProcAddress(capdll, "getCapturePropertyValue"));
-	getCapturePropertyAuto  = reinterpret_cast<getCapturePropertyAutoProc>(GetProcAddress(capdll, "getCapturePropertyAuto"));
-	setCaptureProperty      = reinterpret_cast<setCapturePropertyProc>(GetProcAddress(capdll, "setCaptureProperty"));
-	getCaptureErrorLine     = reinterpret_cast<getCaptureErrorLineProc>(GetProcAddress(capdll, "getCaptureErrorLine"));
-	getCaptureErrorCode     = reinterpret_cast<getCaptureErrorCodeProc>(GetProcAddress(capdll, "getCaptureErrorCode"));
-	initCaptureWithOptions  = reinterpret_cast<initCaptureWithOptionsProc>(GetProcAddress(capdll, "initCaptureWithOptions"));
-
-	/* Check that we got all the entry points */
-	if ((initCOM == nullptr) || (ESCAPIVersion == nullptr) || (getCaptureDeviceName == nullptr) ||
-	    (setCaptureDeviceHotplugFunction == nullptr) || (getCaptureDeviceNameW == nullptr) ||
-	    (getCaptureDeviceIds == nullptr) || (getCaptureSupportedResolutions == nullptr) ||
-	    (countCaptureDevices == nullptr) || (initCapture == nullptr) ||
-	    (deinitCapture == nullptr) || (doCapture == nullptr) || (isCaptureDone == nullptr) ||
-	    (getCapturePropertyValue == nullptr) || (getCapturePropertyAuto == nullptr) ||
-	    (setCaptureProperty == nullptr) || (getCaptureErrorLine == nullptr) ||
-	    (getCaptureErrorCode == nullptr) || (initCaptureWithOptions == nullptr))
+	if (!ESCAPIVersion)
 		return 0;
 
 	/* Verify DLL version is at least what we want */
 	if (ESCAPIVersion() < 0x301)
+		return 0;
+
+	countCaptureDevices     = reinterpret_cast<countCaptureDevicesProc>(GetProcAddress(capdll, "countCaptureDevices"));
+	if (!countCaptureDevices)
+		return 0;
+
+	setCaptureDeviceHotplugFunction = reinterpret_cast<setCaptureDeviceHotplugFunctionProc>(
+		GetProcAddress(capdll, "setCaptureDeviceHotplugFunction"));
+	if (!setCaptureDeviceHotplugFunction)
+		return 0;
+
+	getCaptureDeviceIds     = reinterpret_cast<getCaptureDeviceIdsProc>(GetProcAddress(capdll, "getCaptureDeviceIds"));
+	if (!getCaptureDeviceIds)
+		return 0;
+
+	getCaptureSupportedFormatsAndResolutions = reinterpret_cast<getCaptureSupportedFormatsAndResolutionsProc>(
+		GetProcAddress(capdll, "getCaptureSupportedFormatsAndResolutions"));
+	if (!getCaptureSupportedFormatsAndResolutions)
+		return 0;
+
+	initCapture             = reinterpret_cast<initCaptureProc>(GetProcAddress(capdll, "initCapture"));
+	if (!initCapture)
+		return 0;
+
+	deinitCapture           = reinterpret_cast<deinitCaptureProc>(GetProcAddress(capdll, "deinitCapture"));
+	if (!deinitCapture)
+		return 0;
+
+	doCapture               = reinterpret_cast<doCaptureProc>(GetProcAddress(capdll, "doCapture"));
+	if (!doCapture)
+		return 0;
+
+	isCaptureDone           = reinterpret_cast<isCaptureDoneProc>(GetProcAddress(capdll, "isCaptureDone"));
+	if (!isCaptureDone)
+		return 0;
+
+	initCOM                 = reinterpret_cast<initCOMProc>(GetProcAddress(capdll, "initCOM"));
+	if (!initCOM)
+		return 0;
+
+	getCaptureDeviceName    = reinterpret_cast<getCaptureDeviceNameProc>(GetProcAddress(capdll, "getCaptureDeviceName"));
+	if (!getCaptureDeviceName)
+		return 0;
+
+	getCaptureDeviceNameW = reinterpret_cast<getCaptureDeviceNameWProc>(
+		GetProcAddress(capdll, "getCaptureDeviceNameW"));
+	if (!getCaptureDeviceNameW)
+		return 0;
+
+	getCapturePropertyList = reinterpret_cast<getCapturePropertyListProc>(GetProcAddress(capdll, "getCapturePropertyList"));
+	if (!getCapturePropertyList)
+		return 0;
+
+	getCapturePropertyValue = reinterpret_cast<getCapturePropertyValueProc>(GetProcAddress(capdll, "getCapturePropertyValue"));
+	if (!getCapturePropertyValue)
+		return 0;
+
+	getCapturePropertyAuto  = reinterpret_cast<getCapturePropertyAutoProc>(GetProcAddress(capdll, "getCapturePropertyAuto"));
+	if (!getCapturePropertyAuto)
+		return 0;
+
+	setCaptureProperty      = reinterpret_cast<setCapturePropertyProc>(GetProcAddress(capdll, "setCaptureProperty"));
+	if (!setCaptureProperty)
+		return 0;
+
+	getCaptureErrorLine     = reinterpret_cast<getCaptureErrorLineProc>(GetProcAddress(capdll, "getCaptureErrorLine"));
+	if (!getCaptureErrorLine)
+		return 0;
+
+	getCaptureErrorCode     = reinterpret_cast<getCaptureErrorCodeProc>(GetProcAddress(capdll, "getCaptureErrorCode"));
+	if (!getCaptureErrorCode)
+		return 0;
+
+	initCaptureWithOptions  = reinterpret_cast<initCaptureWithOptionsProc>(GetProcAddress(capdll, "initCaptureWithOptions"));
+	if (!initCaptureWithOptions)
 		return 0;
 
 	/* Initialize COM.. */

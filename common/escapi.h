@@ -1,8 +1,20 @@
 #pragma once
 /* Extremely Simple Capture API */
 
+enum SimpleFormat
+{
+	H264 = 1,
+	MJPG = 2,
+	YUY2 = 3,
+	NV12 = 4,
+	I420 = 5,
+	RGB24 = 6,
+	RGB32 = 7
+};
+
 struct SimpleCapParams
 {
+	SimpleFormat Format;
 	/* Target buffer.
 	 * Must be at least mWidth * mHeight * sizeof(int) of size!
 	 */
@@ -49,7 +61,7 @@ typedef void (*setCaptureDeviceHotplugFunctionProc)(hotplug_event_t fkt, void* c
 /* Return the number of device IDS copied to the buffer, the number of devices if buffer is NULL */
 typedef size_t (*getCaptureDeviceIdsProc)(size_t* buffer, size_t count);
 
-typedef size_t (*getCaptureSupportedResolutionsProc)(size_t deviceno, size_t* widths,
+typedef size_t (*getCaptureSupportedFormatsAndResolutionsProc)(size_t deviceno, SimpleFormat* formats, size_t* widths,
                                                      size_t* heights, size_t count);
 
 /* initCapture tries to open the video capture device.
@@ -85,12 +97,17 @@ typedef int (*ESCAPIVersionProc)(void);
     - Messing around with camera properties may lead to weird results, so YMMV.
 */
 
+typedef size_t (*getCapturePropertyListProc)(size_t deviceno, CAPTURE_PROPETIES* prop, size_t count);
+
 /* Gets value (0..1) of a camera property (see CAPTURE_PROPERTIES, above) */
-typedef float (*getCapturePropertyValueProc)(size_t deviceno, int prop);
+typedef float (*getCapturePropertyValueProc)(size_t deviceno, CAPTURE_PROPETIES prop);
+typedef float (*getCapturePropertyMinProc)(size_t deviceno, CAPTURE_PROPETIES prop);
+typedef float (*getCapturePropertyMaxProc)(size_t deviceno, CAPTURE_PROPETIES prop);
+
 /* Gets whether the property is set to automatic (see CAPTURE_PROPERTIES, above) */
-typedef int (*getCapturePropertyAutoProc)(size_t deviceno, int prop);
+typedef int (*getCapturePropertyAutoProc)(size_t deviceno, CAPTURE_PROPETIES prop);
 /* Set camera property to a value (0..1) and whether it should be set to auto. */
-typedef int (*setCapturePropertyProc)(size_t deviceno, int prop, float value, int autoval);
+typedef int (*setCapturePropertyProc)(size_t deviceno, CAPTURE_PROPETIES prop, float value, int autoval);
 
 /*
     All error situations in ESCAPI are considered catastrophic. If such should
@@ -120,15 +137,18 @@ typedef int (*initCaptureWithOptionsProc)(size_t deviceno, struct SimpleCapParam
 extern setCaptureDeviceHotplugFunctionProc setCaptureDeviceHotplugFunction;
 extern countCaptureDevicesProc countCaptureDevices;
 extern getCaptureDeviceIdsProc getCaptureDeviceIds;
-extern getCaptureSupportedResolutionsProc getCaptureSupportedResolutions;
+extern getCaptureSupportedFormatsAndResolutionsProc getCaptureSupportedFormatsAndResolutions;
 extern initCaptureProc initCapture;
 extern deinitCaptureProc deinitCapture;
 extern doCaptureProc doCapture;
 extern isCaptureDoneProc isCaptureDone;
 extern getCaptureDeviceNameProc getCaptureDeviceName;
+extern getCapturePropertyListProc getCapturePropertyList;
 extern getCaptureDeviceNameWProc getCaptureDeviceNameW;
 extern ESCAPIVersionProc ESCAPIVersion;
 extern getCapturePropertyValueProc getCapturePropertyValue;
+extern getCapturePropertyMinProc getCapturePropertyMin;
+extern getCapturePropertyMaxProc getCapturePropertyMax;
 extern getCapturePropertyAutoProc getCapturePropertyAuto;
 extern setCapturePropertyProc setCaptureProperty;
 extern getCaptureErrorLineProc getCaptureErrorLine;

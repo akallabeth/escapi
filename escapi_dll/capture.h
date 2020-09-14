@@ -9,6 +9,7 @@
 #include <vector>
 #include <string>
 
+#include <escapi.h>
 #include "conversion.h"
 #include "choosedeviceparam.h"
 
@@ -44,20 +45,21 @@ class CaptureClass : public IMFSourceReaderCallback
 	                          LONGLONG aTimestamp, IMFSample* aSample);
 	STDMETHODIMP OnEvent(DWORD, IMFMediaEvent*);
 	STDMETHODIMP OnFlush(DWORD);
-	int escapiPropToMFProp(int aProperty);
-	int setProperty(int aProperty, float aValue, int aAuto);
-	int getProperty(int aProperty, float& aValue, int& aAuto);
+	int escapiPropToMFProp(CAPTURE_PROPETIES aProperty);
+	int setProperty(CAPTURE_PROPETIES aProperty, float aValue, int aAuto);
+	int getProperty(CAPTURE_PROPETIES aProperty, float& aValue, int& aAuto, float& min, float& max);
+	std::vector<CAPTURE_PROPETIES> getPropertyList();
 	BOOL isFormatSupported(REFGUID aSubtype) const;
 	HRESULT getFormat(DWORD aIndex, GUID* aSubtype) const;
 	HRESULT setConversionFunction(REFGUID aSubtype);
-	HRESULT setVideoType(IMFMediaType* aType);
+	HRESULT setVideoType(SimpleFormat fomat, IMFMediaType* aType);
 	int isMediaOk(IMFMediaType* aType, unsigned int aIndex);
 	int scanMediaTypes(unsigned int aWidth, unsigned int aHeight);
 	std::vector<resolution> getSupportedResolutions();
 
 	HRESULT initCapture(const struct SimpleCapParams* aParams, unsigned int aOptions);
 
-	bool changeResolution(size_t width, size_t height);
+	bool changeResolution(SimpleFormat format, size_t width, size_t height);
 
 	void deinitCapture();
 

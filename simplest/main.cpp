@@ -36,9 +36,10 @@ int main()
 	wchar_t wname[64] = {};
 	size_t wlen = getCaptureDeviceNameW(ids[0], wname, 64);
 
-	size_t widths[64] = {};
-	size_t heights[64] = {};
-	size_t count = getCaptureSupportedResolutions(ids[0], widths, heights, 64);
+	SimpleFormat formats[128] = {};
+	size_t widths[128] = {};
+	size_t heights[128] = {};
+	size_t count = getCaptureSupportedFormatsAndResolutions(ids[0], formats, widths, heights, 128);
 	if (count == 0)
 	{
 		printf("ESCAPI initialization failure, no resolutions detected for device.\n");
@@ -51,6 +52,7 @@ int main()
 	 */
 
 	struct SimpleCapParams capture;
+	capture.Format = formats[0];
 	capture.mWidth = widths[0];
 	capture.mHeight = heights[0];
 	capture.mTargetBuf = new int[capture.mWidth * capture.mHeight];
@@ -65,6 +67,16 @@ int main()
 	{
 		printf("Capture failed - device may already be in use.\n");
 		return -2;
+	}
+
+	CAPTURE_PROPETIES properties[64] = {};
+	auto cnt = getCapturePropertyList(ids[0], properties, 64);
+	for (size_t x=0; x<cnt; x++) {
+		auto a = getCapturePropertyAuto(ids[0], properties[x]);
+		auto b = getCapturePropertyValue(ids[x], properties[x]);
+		auto c = getCapturePropertyMin(ids[x], properties[x]);
+		auto d = getCapturePropertyMax(ids[x], properties[x]);
+		std::cout << a << b << c << d << std::endl;
 	}
 
 	/* Go through 10 capture loops so that the camera has

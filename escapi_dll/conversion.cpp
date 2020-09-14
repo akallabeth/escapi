@@ -30,7 +30,7 @@ void TransformImage_RGB24(BYTE* aDest, LONG aDestStride, const BYTE* aSrc, LONG 
 }
 
 void TransformImage_RGB32(BYTE* aDest, LONG aDestStride, const BYTE* aSrc, LONG aSrcStride,
-                          DWORD aWidthInPixels, DWORD aHeightInPixels)
+						  DWORD aWidthInPixels, DWORD aHeightInPixels)
 {
 	MFCopyImage(aDest, aDestStride, aSrc, aSrcStride, aWidthInPixels * 4, aHeightInPixels);
 }
