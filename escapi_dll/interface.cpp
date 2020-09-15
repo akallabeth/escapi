@@ -46,6 +46,19 @@ int EscAPI::IsCaptureDone(size_t deviceno)
 	return 0;
 }
 
+size_t EscAPI::GetCaptureImage(size_t deviceno, char **buffer, size_t *stride, size_t *height) {
+	if (!CheckForFail(deviceno))
+		return 0;
+
+	CaptureClass* dev;
+	if (getDevice(deviceno, &dev))
+	{
+		return dev->getCaptureImage(buffer, stride, height);
+	}
+
+	return 0;
+}
+
 void EscAPI::CleanupDevice(size_t aDevice)
 {
 	CaptureClass* dev;
@@ -87,9 +100,14 @@ size_t EscAPI::GetSupportedFormatsAndResolutions(size_t device, SimpleFormat* fo
 	{
 		CaptureClass::resolution res = resolutions.back();
 		resolutions.pop_back();
-		for (size_t y=YUY2; (y<=RGB32)&&(x < used); y++) {
+		for (size_t y=H264; (y<=RGB32)&&(x < used); y++) {
 			if (y == I420)
 				continue;
+			if (y == H264)
+				continue;
+			if (y == MJPG)
+				continue;
+
 			formats[x] = static_cast<SimpleFormat>(y);
 			widths[x] = res.w;
 			heights[x] = res.h;

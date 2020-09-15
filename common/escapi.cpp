@@ -9,6 +9,7 @@ initCaptureProc initCapture;
 deinitCaptureProc deinitCapture;
 doCaptureProc doCapture;
 isCaptureDoneProc isCaptureDone;
+getCaptureImageProc getCaptureImage;
 getCaptureDeviceNameProc getCaptureDeviceName;
 getCaptureDeviceNameWProc getCaptureDeviceNameW;
 ESCAPIVersionProc ESCAPIVersion;
@@ -76,6 +77,10 @@ size_t setupESCAPI(hotplug_event_t fkt, void* context)
 	if (!isCaptureDone)
 		return 0;
 
+	getCaptureImage         = reinterpret_cast<getCaptureImageProc>(GetProcAddress(capdll, "getCaptureImage"));
+	if (!getCaptureImage)
+		return 0;
+
 	initCOM                 = reinterpret_cast<initCOMProc>(GetProcAddress(capdll, "initCOM"));
 	if (!initCOM)
 		return 0;
@@ -95,6 +100,14 @@ size_t setupESCAPI(hotplug_event_t fkt, void* context)
 
 	getCapturePropertyValue = reinterpret_cast<getCapturePropertyValueProc>(GetProcAddress(capdll, "getCapturePropertyValue"));
 	if (!getCapturePropertyValue)
+		return 0;
+
+	getCapturePropertyMin = reinterpret_cast<getCapturePropertyMinProc>(GetProcAddress(capdll, "getCapturePropertyMin"));
+	if (!getCapturePropertyMin)
+		return 0;
+
+	getCapturePropertyMax = reinterpret_cast<getCapturePropertyMaxProc>(GetProcAddress(capdll, "getCapturePropertyMax"));
+	if (!getCapturePropertyMax)
 		return 0;
 
 	getCapturePropertyAuto  = reinterpret_cast<getCapturePropertyAutoProc>(GetProcAddress(capdll, "getCapturePropertyAuto"));

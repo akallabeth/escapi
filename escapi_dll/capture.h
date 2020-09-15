@@ -66,6 +66,8 @@ class CaptureClass : public IMFSourceReaderCallback
 	std::wstring name() const;
 	std::string cname() const;
 
+	size_t getCaptureImage(char**buffer, size_t* stride, size_t* height);
+
   private:
 	static std::wstring updatename(IMFActivate* device);
 
@@ -89,8 +91,10 @@ class CaptureClass : public IMFSourceReaderCallback
 	LONG mDefaultStride;
 	IMAGE_TRANSFORM_FN mConvertFn; // Function to convert the video to RGB32
 
-	unsigned int* mCaptureBuffer;
-	unsigned int mCaptureBufferWidth, mCaptureBufferHeight;
+	char* mCaptureBuffer;
+	size_t mCaptureBufferScanline;
+	size_t mCaptureBufferWidth;
+	size_t mCaptureBufferHeight;
 
 	std::vector<unsigned int> mBadIndex;
 	unsigned int mBadIndices;

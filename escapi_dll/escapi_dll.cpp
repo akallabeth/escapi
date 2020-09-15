@@ -62,9 +62,6 @@ extern "C" void __declspec(dllexport) initCOM()
 extern "C" int __declspec(dllexport)
 	initCapture(size_t deviceno, struct SimpleCapParams* aParams)
 {
-	if (aParams == NULL || aParams->mHeight <= 0 || aParams->mWidth <= 0 ||
-	    aParams->mTargetBuf == 0)
-		return 0;
 	if (FAILED(EscAPI::InitDevice(deviceno, aParams, 0)))
 		return 0;
 	return 1;
@@ -84,6 +81,12 @@ extern "C" int __declspec(dllexport) isCaptureDone(size_t deviceno)
 {
 	return EscAPI::IsCaptureDone(deviceno);
 }
+
+extern "C" size_t __declspec(dllexport) getCaptureImage(size_t deviceno, char** buffer, size_t* stride, size_t* height)
+{
+	return EscAPI::GetCaptureImage(deviceno, buffer, stride, height);
+}
+
 
 extern "C" int __declspec(dllexport) getCaptureErrorLine(size_t deviceno)
 {
@@ -130,11 +133,6 @@ extern "C" int __declspec(dllexport)
     initCaptureWithOptions(size_t deviceno, struct SimpleCapParams* aParams,
                            unsigned int aOptions)
 {
-	if (aParams == NULL || aParams->mHeight <= 0 || aParams->mWidth <= 0 ||
-	    aParams->mTargetBuf == 0)
-		return 0;
-	if ((aOptions & CAPTURE_OPTIONS_MASK) != aOptions)
-		return 0;
 	if (FAILED(EscAPI::InitDevice(deviceno, aParams, aOptions)))
 		return 0;
 	return 1;

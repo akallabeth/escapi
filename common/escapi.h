@@ -15,10 +15,7 @@ enum SimpleFormat
 struct SimpleCapParams
 {
 	SimpleFormat Format;
-	/* Target buffer.
-	 * Must be at least mWidth * mHeight * sizeof(int) of size!
-	 */
-	int* mTargetBuf;
+
 	/* Buffer width */
 	size_t mWidth;
 	/* Buffer height */
@@ -81,6 +78,9 @@ typedef void (*doCaptureProc)(size_t deviceno);
 /* isCaptureDone returns 1 when the requested frame has been captured.*/
 typedef int (*isCaptureDoneProc)(size_t deviceno);
 
+/* isCaptureDone returns 1 when the requested frame has been captured.*/
+typedef size_t (*getCaptureImageProc)(size_t deviceno, char** buffer, size_t* stride, size_t* height);
+
 /* Get the user-friendly name of a capture device. */
 typedef size_t (*getCaptureDeviceNameProc)(size_t deviceno, char* namebuffer, size_t bufferlength);
 typedef size_t (*getCaptureDeviceNameWProc)(size_t deviceno, wchar_t* namebuffer,
@@ -142,6 +142,7 @@ extern initCaptureProc initCapture;
 extern deinitCaptureProc deinitCapture;
 extern doCaptureProc doCapture;
 extern isCaptureDoneProc isCaptureDone;
+extern getCaptureImageProc getCaptureImage;
 extern getCaptureDeviceNameProc getCaptureDeviceName;
 extern getCapturePropertyListProc getCapturePropertyList;
 extern getCaptureDeviceNameWProc getCaptureDeviceNameW;

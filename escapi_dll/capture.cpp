@@ -69,7 +69,9 @@ CaptureClass::CaptureClass(IMFActivate* device)
 	mRedoFromStart = 0;
 	gDoCapture = 0;
 	gOptions = 0;
-
+	gParams.Format = YUY2;
+	gParams.mWidth = 320;
+	gParams.mHeight = 240;
 	setup();
 	wcname = updatename(device);
 }
@@ -157,7 +159,7 @@ STDMETHODIMP CaptureClass::OnReadSample(HRESULT aStatus, DWORD aStreamIndex, DWO
 
 					DO_OR_DIE_CRITSECTION;
 
-					mConvertFn((BYTE*)mCaptureBuffer, mCaptureBufferWidth * 4, scanline0, stride,
+					mConvertFn((BYTE*)mCaptureBuffer, mCaptureBufferScanline, scanline0, stride,
 					           mCaptureBufferWidth, mCaptureBufferHeight);
 				}
 				else
@@ -183,18 +185,6 @@ STDMETHODIMP CaptureClass::OnReadSample(HRESULT aStatus, DWORD aStreamIndex, DWO
 					}
 				}
 
-				int i, j;
-				int* dst = (int*)gParams.mTargetBuf;
-				int* src = (int*)mCaptureBuffer;
-				for (i = 0; i < gParams.mHeight; i++)
-				{
-					for (j = 0; j < gParams.mWidth; j++, dst++)
-					{
-						*dst =
-						    src[(i * mCaptureBufferHeight / gParams.mHeight) * mCaptureBufferWidth +
-						        (j * mCaptureBufferWidth / gParams.mWidth)];
-					}
-				}
 				gDoCapture = 1;
 			}
 		}
@@ -528,9 +518,10 @@ HRESULT CaptureClass::setVideoType(SimpleFormat type, IMFMediaType* aType)
 
 	hr = MFGetStrideForBitmapInfoHeader(subtype.Data1, width, &mDefaultStride);
 
-	mCaptureBuffer = new unsigned int[width * height];
+	mCaptureBuffer = new char[width * height * 4];
 	mCaptureBufferWidth = width;
 	mCaptureBufferHeight = height;
+	mCaptureBufferScanline = width * 4;
 
 	DO_OR_DIE;
 
@@ -715,7 +706,8 @@ HRESULT CaptureClass::initCapture(const struct SimpleCapParams* aParams, unsigne
 	DO_OR_DIE_CRITSECTION;
 
 	LeaveCriticalSection(&mCritsec);
-	changeResolution(gParams.Format, gParams.mWidth, gParams.mHeight);
+	if (!changeResolution(gParams.Format, gParams.mWidth, gParams.mHeight))
+		return -1;
 
 	return 0;
 }
@@ -752,6 +744,7 @@ bool CaptureClass::changeResolution(SimpleFormat format, size_t width, size_t he
 	DO_OR_DIE_CRITSECTION;
 
 	LeaveCriticalSection(&mCritsec);
+	return true;
 }
 
 void CaptureClass::deinitCapture()
@@ -789,6 +782,14 @@ std::string CaptureClass::cname() const
 
 	// use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
 	return converter.to_bytes(wname);
+}
+
+size_t CaptureClass::getCaptureImage(char **buffer, size_t *stride, size_t *height)
+{
+	*buffer = mCaptureBuffer;
+	*stride =  mCaptureBufferScanline;
+	*height = mCaptureBufferHeight;
+	return  mCaptureBufferScanline * mCaptureBufferHeight;
 }
 
 std::wstring CaptureClass::updatename(IMFActivate* device)

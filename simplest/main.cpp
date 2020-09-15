@@ -55,7 +55,6 @@ int main()
 	capture.Format = formats[0];
 	capture.mWidth = widths[0];
 	capture.mHeight = heights[0];
-	capture.mTargetBuf = new int[capture.mWidth * capture.mHeight];
 
 	/* Initialize capture - only one capture may be active per device,
 	 * but several devices may be captured at the same time.
@@ -73,9 +72,9 @@ int main()
 	auto cnt = getCapturePropertyList(ids[0], properties, 64);
 	for (size_t x=0; x<cnt; x++) {
 		auto a = getCapturePropertyAuto(ids[0], properties[x]);
-		auto b = getCapturePropertyValue(ids[x], properties[x]);
-		auto c = getCapturePropertyMin(ids[x], properties[x]);
-		auto d = getCapturePropertyMax(ids[x], properties[x]);
+		auto b = getCapturePropertyValue(ids[0], properties[x]);
+		auto c = getCapturePropertyMin(ids[0], properties[x]);
+		auto d = getCapturePropertyMax(ids[0], properties[x]);
 		std::cout << a << b << c << d << std::endl;
 	}
 
@@ -95,6 +94,7 @@ int main()
 			 * simply fails (i.e, user unplugs the web camera), this
 			 * will be an infinite loop.
 			 */
+			_sleep(1);
 		}
 	}
 
@@ -102,11 +102,15 @@ int main()
 	 * render it in ASCII.. (using 3 top bits of green as the value)
 	 */
 	char light[] = " .,-o+O0@";
-	for (i = 0; i < capture.mHeight; i++)
+	char* buffer = nullptr;
+	size_t stride, height;
+	size_t size = getCaptureImage(ids[0], &buffer, &stride, &height);
+
+	for (i = 0; i < height; i++)
 	{
-		for (j = 0; j < capture.mWidth; j++)
+		for (j = 0; j < stride; j++)
 		{
-			printf("%c", light[(capture.mTargetBuf[i * 24 + j] >> 13) & 7]);
+			printf("%c", light[(buffer[i * 24 + j] >> 13) & 7]);
 		}
 		printf("\n");
 	}

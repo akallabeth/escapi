@@ -32,6 +32,7 @@ class EscAPI
 	static int SetProperty(size_t device, CAPTURE_PROPERTIES prop, float value, int autoval);
 	static void DoCapture(size_t deviceno);
 	static int IsCaptureDone(size_t deviceno);
+	static size_t GetCaptureImage(size_t deviceno, char** buffer, size_t* stride, size_t* height);
 
   private:
 	static bool CheckForFail(size_t aDevice);
