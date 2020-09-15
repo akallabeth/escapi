@@ -225,7 +225,7 @@ STDMETHODIMP CaptureClass::OnFlush(DWORD)
 	return S_OK;
 }
 
-int CaptureClass::escapiPropToMFProp(CAPTURE_PROPETIES aProperty)
+int CaptureClass::escapiPropToMFProp(CAPTURE_PROPERTIES aProperty)
 {
 	int prop = 0;
 	switch (aProperty)
@@ -286,7 +286,7 @@ int CaptureClass::escapiPropToMFProp(CAPTURE_PROPETIES aProperty)
 	return prop;
 }
 
-int CaptureClass::setProperty(CAPTURE_PROPETIES aProperty, float aValue, int aAuto)
+int CaptureClass::setProperty(CAPTURE_PROPERTIES aProperty, float aValue, int aAuto)
 {
 	HRESULT hr;
 	IAMVideoProcAmp* procAmp = nullptr;
@@ -338,7 +338,7 @@ int CaptureClass::setProperty(CAPTURE_PROPETIES aProperty, float aValue, int aAu
 	return 1;
 }
 
-int CaptureClass::getProperty(CAPTURE_PROPETIES aProperty, float& aValue, int& aAuto, float& fmin, float& fmax)
+int CaptureClass::getProperty(CAPTURE_PROPERTIES aProperty, float& aValue, int& aAuto, float& fmin, float& fmax)
 {
 	HRESULT hr;
 	IAMVideoProcAmp* procAmp = nullptr;
@@ -399,9 +399,9 @@ int CaptureClass::getProperty(CAPTURE_PROPETIES aProperty, float& aValue, int& a
 	return 1;
 }
 
-std::vector<CAPTURE_PROPETIES> CaptureClass::getPropertyList()
+std::vector<CAPTURE_PROPERTIES> CaptureClass::getPropertyList()
 {
-	std::vector<CAPTURE_PROPETIES> list;
+	std::vector<CAPTURE_PROPERTIES> list;
 	list.push_back(CAPTURE_BRIGHTNESS);
 	list.push_back(CAPTURE_CONTRAST);
 	list.push_back(CAPTURE_HUE);

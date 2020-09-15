@@ -45,10 +45,10 @@ class CaptureClass : public IMFSourceReaderCallback
 	                          LONGLONG aTimestamp, IMFSample* aSample);
 	STDMETHODIMP OnEvent(DWORD, IMFMediaEvent*);
 	STDMETHODIMP OnFlush(DWORD);
-	int escapiPropToMFProp(CAPTURE_PROPETIES aProperty);
-	int setProperty(CAPTURE_PROPETIES aProperty, float aValue, int aAuto);
-	int getProperty(CAPTURE_PROPETIES aProperty, float& aValue, int& aAuto, float& min, float& max);
-	std::vector<CAPTURE_PROPETIES> getPropertyList();
+	int escapiPropToMFProp(CAPTURE_PROPERTIES aProperty);
+	int setProperty(CAPTURE_PROPERTIES aProperty, float aValue, int aAuto);
+	int getProperty(CAPTURE_PROPERTIES aProperty, float& aValue, int& aAuto, float& min, float& max);
+	std::vector<CAPTURE_PROPERTIES> getPropertyList();
 	BOOL isFormatSupported(REFGUID aSubtype) const;
 	HRESULT getFormat(DWORD aIndex, GUID* aSubtype) const;
 	HRESULT setConversionFunction(REFGUID aSubtype);

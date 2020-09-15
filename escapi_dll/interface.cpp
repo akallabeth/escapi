@@ -48,7 +48,11 @@ int EscAPI::IsCaptureDone(size_t deviceno)
 
 void EscAPI::CleanupDevice(size_t aDevice)
 {
-    sDeviceList.erase(aDevice);
+	CaptureClass* dev;
+	if (getDevice(aDevice, &dev))
+	{
+		dev->deinitCapture();
+	}
 }
 
 void EscAPI::SetHotplugCallback(hotplug_event_t fkt, void* context)
@@ -70,9 +74,10 @@ HRESULT EscAPI::InitDevice(size_t aDevice, const struct SimpleCapParams* aParams
 
 size_t EscAPI::GetSupportedFormatsAndResolutions(size_t device, SimpleFormat* formats, size_t* widths, size_t* heights, size_t count)
 {
-	if (sDeviceList.find(device) == sDeviceList.end())
+	CaptureClass* dev;
+	if (!getDevice(device, &dev))
 		return 0;
-	auto& dev = sDeviceList.at(device);
+
 	std::vector<CaptureClass::resolution> resolutions = dev->getSupportedResolutions();
 	size_t used = std::min<size_t>(count, resolutions.size() * 4);
 	if (!formats || !widths || !heights || (count == 0))
@@ -268,7 +273,7 @@ int EscAPI::GetErrorLine(size_t aDevice)
 	return dev->mErrorLine;
 }
 
-size_t EscAPI::GetPropertyList(size_t aDevice, CAPTURE_PROPETIES *properties, size_t count)
+size_t EscAPI::GetPropertyList(size_t aDevice, CAPTURE_PROPERTIES *properties, size_t count)
 {
 	if (!CheckForFail(aDevice))
 		return 0;
@@ -279,16 +284,16 @@ size_t EscAPI::GetPropertyList(size_t aDevice, CAPTURE_PROPETIES *properties, si
 	{
 		return 0;
 	}
-	std::vector<CAPTURE_PROPETIES> list = dev->getPropertyList();
+	std::vector<CAPTURE_PROPERTIES> list = dev->getPropertyList();
 	if (properties)
 	{
 		size_t cpy = std::min<size_t>(count, list.size());
-		memcpy(properties, list.data(), cpy * sizeof(CAPTURE_PROPETIES));
+		memcpy(properties, list.data(), cpy * sizeof(CAPTURE_PROPERTIES));
 	}
 	return list.size();
 }
 
-float EscAPI::GetProperty(size_t aDevice, CAPTURE_PROPETIES aProp)
+float EscAPI::GetProperty(size_t aDevice, CAPTURE_PROPERTIES aProp)
 {
 	if (!CheckForFail(aDevice))
 		return 0;
@@ -303,7 +308,7 @@ float EscAPI::GetProperty(size_t aDevice, CAPTURE_PROPETIES aProp)
 	return val;
 }
 
-float EscAPI::GetPropertyMin(size_t aDevice, CAPTURE_PROPETIES aProp)
+float EscAPI::GetPropertyMin(size_t aDevice, CAPTURE_PROPERTIES aProp)
 {
 	if (!CheckForFail(aDevice))
 		return 0;
@@ -318,7 +323,7 @@ float EscAPI::GetPropertyMin(size_t aDevice, CAPTURE_PROPETIES aProp)
 	return min;
 }
 
-float EscAPI::GetPropertyMax(size_t aDevice, CAPTURE_PROPETIES aProp)
+float EscAPI::GetPropertyMax(size_t aDevice, CAPTURE_PROPERTIES aProp)
 {
 	if (!CheckForFail(aDevice))
 		return 0;
@@ -334,7 +339,7 @@ float EscAPI::GetPropertyMax(size_t aDevice, CAPTURE_PROPETIES aProp)
 }
 
 
-int EscAPI::GetPropertyAuto(size_t aDevice, CAPTURE_PROPETIES aProp)
+int EscAPI::GetPropertyAuto(size_t aDevice, CAPTURE_PROPERTIES aProp)
 {
 	if (!CheckForFail(aDevice))
 		return 0;
@@ -349,7 +354,7 @@ int EscAPI::GetPropertyAuto(size_t aDevice, CAPTURE_PROPETIES aProp)
 	return autoval;
 }
 
-int EscAPI::SetProperty(size_t aDevice, CAPTURE_PROPETIES aProp, float aValue, int aAutoval)
+int EscAPI::SetProperty(size_t aDevice, CAPTURE_PROPERTIES aProp, float aValue, int aAutoval)
 {
 	if (!CheckForFail(aDevice))
 		return 0;

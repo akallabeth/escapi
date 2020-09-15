@@ -69,7 +69,7 @@ int main()
 		return -2;
 	}
 
-	CAPTURE_PROPETIES properties[64] = {};
+	CAPTURE_PROPERTIES properties[64] = {};
 	auto cnt = getCapturePropertyList(ids[0], properties, 64);
 	for (size_t x=0; x<cnt; x++) {
 		auto a = getCapturePropertyAuto(ids[0], properties[x]);

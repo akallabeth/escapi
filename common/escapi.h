@@ -25,7 +25,7 @@ struct SimpleCapParams
 	size_t mHeight;
 };
 
-enum CAPTURE_PROPETIES
+enum CAPTURE_PROPERTIES
 {
 	CAPTURE_BRIGHTNESS,
 	CAPTURE_CONTRAST,
@@ -45,7 +45,7 @@ enum CAPTURE_PROPETIES
 	CAPTURE_IRIS,
 	CAPTURE_FOCUS,
 	CAPTURE_PROP_MAX
-};
+} ;
 
 typedef void (*hotplug_event_t)(void* context, size_t device, bool added);
 
@@ -97,17 +97,17 @@ typedef int (*ESCAPIVersionProc)(void);
     - Messing around with camera properties may lead to weird results, so YMMV.
 */
 
-typedef size_t (*getCapturePropertyListProc)(size_t deviceno, CAPTURE_PROPETIES* prop, size_t count);
+typedef size_t (*getCapturePropertyListProc)(size_t deviceno, CAPTURE_PROPERTIES* prop, size_t count);
 
 /* Gets value (0..1) of a camera property (see CAPTURE_PROPERTIES, above) */
-typedef float (*getCapturePropertyValueProc)(size_t deviceno, CAPTURE_PROPETIES prop);
-typedef float (*getCapturePropertyMinProc)(size_t deviceno, CAPTURE_PROPETIES prop);
-typedef float (*getCapturePropertyMaxProc)(size_t deviceno, CAPTURE_PROPETIES prop);
+typedef float (*getCapturePropertyValueProc)(size_t deviceno, CAPTURE_PROPERTIES prop);
+typedef float (*getCapturePropertyMinProc)(size_t deviceno, CAPTURE_PROPERTIES prop);
+typedef float (*getCapturePropertyMaxProc)(size_t deviceno, CAPTURE_PROPERTIES prop);
 
 /* Gets whether the property is set to automatic (see CAPTURE_PROPERTIES, above) */
-typedef int (*getCapturePropertyAutoProc)(size_t deviceno, CAPTURE_PROPETIES prop);
+typedef int (*getCapturePropertyAutoProc)(size_t deviceno, CAPTURE_PROPERTIES prop);
 /* Set camera property to a value (0..1) and whether it should be set to auto. */
-typedef int (*setCapturePropertyProc)(size_t deviceno, CAPTURE_PROPETIES prop, float value, int autoval);
+typedef int (*setCapturePropertyProc)(size_t deviceno, CAPTURE_PROPERTIES prop, float value, int autoval);
 
 /*
     All error situations in ESCAPI are considered catastrophic. If such should
