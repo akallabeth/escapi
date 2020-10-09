@@ -37,12 +37,10 @@
 	{                                        \
 		if (mErrorLine)                      \
 		{                                    \
-			LeaveCriticalSection(&mCritsec); \
 			return hr;                       \
 		}                                    \
 		if (!SUCCEEDED(hr))                  \
 		{                                    \
-			LeaveCriticalSection(&mCritsec); \
 			mErrorLine = __LINE__;           \
 			mErrorCode = hr;                 \
 			return hr;                       \
@@ -52,12 +50,10 @@
 CaptureClass::CaptureClass(IMFActivate* device)
 {
 	mRefCount = 1;
-	InitializeCriticalSection(&mCritsec);
 	mReader = nullptr;
 	mSource = nullptr;
 	mDefaultStride = 0;
 	mConvertFn = nullptr;
-	mCaptureBuffer = nullptr;
 	mCaptureBufferWidth = 0;
 	mCaptureBufferHeight = 0;
 	mErrorLine = 0;
@@ -79,7 +75,6 @@ CaptureClass::CaptureClass(IMFActivate* device)
 CaptureClass::~CaptureClass()
 {
 	deinitCapture();
-	DeleteCriticalSection(&mCritsec);
 }
 
 // IUnknown methods
@@ -131,7 +126,7 @@ STDMETHODIMP CaptureClass::OnReadSample(HRESULT aStatus, DWORD aStreamIndex, DWO
 		return aStatus;
 	}
 
-	EnterCriticalSection(&mCritsec);
+	std::unique_lock<std::mutex> lck(mutex);
 
 	if (SUCCEEDED(aStatus))
 	{
@@ -159,30 +154,8 @@ STDMETHODIMP CaptureClass::OnReadSample(HRESULT aStatus, DWORD aStreamIndex, DWO
 
 					DO_OR_DIE_CRITSECTION;
 
-					mConvertFn((BYTE*)mCaptureBuffer, mCaptureBufferScanline, scanline0, stride,
+					mConvertFn(mCaptureBuffer, mCaptureBufferScanline, scanline0, stride,
 					           mCaptureBufferWidth, mCaptureBufferHeight);
-				}
-				else
-				{
-					// No convert function?
-					if (gOptions & CAPTURE_OPTION_RAWDATA)
-					{
-						// Ah ok, raw data was requested, so let's copy it then.
-
-						VideoBufferLock buffer(
-						    mediabuffer); // Helper object to lock the video buffer.
-						BYTE* scanline0 = nullptr;
-						LONG stride = 0;
-						hr = buffer.LockBuffer(mDefaultStride, mCaptureBufferHeight, &scanline0,
-						                       &stride);
-						if (stride < 0)
-						{
-							scanline0 += stride * mCaptureBufferHeight;
-							stride = -stride;
-						}
-						LONG bytes = stride * mCaptureBufferHeight;
-						CopyMemory(mCaptureBuffer, scanline0, bytes);
-					}
 				}
 
 				gDoCapture = 1;
@@ -199,8 +172,6 @@ STDMETHODIMP CaptureClass::OnReadSample(HRESULT aStatus, DWORD aStreamIndex, DWO
 	);
 
 	DO_OR_DIE_CRITSECTION;
-
-	LeaveCriticalSection(&mCritsec);
 
 	return hr;
 }
@@ -415,10 +386,9 @@ std::vector<CAPTURE_PROPERTIES> CaptureClass::getPropertyList()
 
 BOOL CaptureClass::isFormatSupported(REFGUID aSubtype) const
 {
-	DWORD i;
-	for (i = 0; i < gConversionFormats; i++)
+	for (const auto& format : gFormatConversions)
 	{
-		if (aSubtype == gFormatConversions[i].mSubtype)
+		if (aSubtype == format.mSubtype)
 		{
 			return TRUE;
 		}
@@ -428,7 +398,7 @@ BOOL CaptureClass::isFormatSupported(REFGUID aSubtype) const
 
 HRESULT CaptureClass::getFormat(DWORD aIndex, GUID* aSubtype) const
 {
-	if (aIndex < gConversionFormats)
+	if (aIndex < gFormatConversions.size())
 	{
 		*aSubtype = gFormatConversions[aIndex].mSubtype;
 		return S_OK;
@@ -442,13 +412,16 @@ HRESULT CaptureClass::setConversionFunction(REFGUID aSubtype)
 
 	// If raw data is desired, skip conversion
 	if (gOptions & CAPTURE_OPTION_RAWDATA)
-		return S_OK;
-
-	for (DWORD i = 0; i < gConversionFormats; i++)
 	{
-		if (gFormatConversions[i].mSubtype == aSubtype)
+		mConvertFn = gFormatRawConverter;
+		return S_OK;
+	}
+
+	for (const auto& format : gFormatConversions)
+	{
+		if (format.mSubtype == aSubtype)
 		{
-			mConvertFn = gFormatConversions[i].mXForm;
+			mConvertFn = format.mXForm;
 			return S_OK;
 		}
 	}
@@ -518,10 +491,9 @@ HRESULT CaptureClass::setVideoType(SimpleFormat type, IMFMediaType* aType)
 
 	hr = MFGetStrideForBitmapInfoHeader(subtype.Data1, width, &mDefaultStride);
 
-	mCaptureBuffer = new char[width * height * 4];
 	mCaptureBufferWidth = width;
 	mCaptureBufferHeight = height;
-	mCaptureBufferScanline = width * 4;
+	mCaptureBufferScanline = 0;
 
 	DO_OR_DIE;
 
@@ -671,41 +643,42 @@ HRESULT CaptureClass::initCapture(const struct SimpleCapParams* aParams, unsigne
 	gParams = *aParams;
 	gOptions = aOptions;
 
-	// use param.ppDevices[0]
-	IMFAttributes* attributes = nullptr;
-	EnterCriticalSection(&mCritsec);
-
-	ChooseDeviceParam param = {};
-	IMFActivate* device = get(param);
-	if (!device)
 	{
-		LeaveCriticalSection(&mCritsec);
-		mErrorLine = __LINE__;
-		mErrorCode = E_FAIL;
-		return mErrorCode;
+		std::unique_lock<std::mutex> lck(mutex);
+
+		// use param.ppDevices[0]
+		IMFAttributes* attributes = nullptr;
+
+		ChooseDeviceParam param = {};
+		IMFActivate* device = get(param);
+		if (!device)
+		{
+			mErrorLine = __LINE__;
+			mErrorCode = E_FAIL;
+			return mErrorCode;
+		}
+		hr = device->ActivateObject(__uuidof(IMFMediaSource), (void**)&mSource);
+
+		DO_OR_DIE_CRITSECTION;
+
+		hr = MFCreateAttributes(&attributes, 3);
+		ScopedRelease<IMFAttributes> attributes_s(attributes);
+
+		DO_OR_DIE_CRITSECTION;
+
+		hr = attributes->SetUINT32(MF_READWRITE_DISABLE_CONVERTERS, TRUE);
+
+		DO_OR_DIE_CRITSECTION;
+
+		hr = attributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, this);
+
+		DO_OR_DIE_CRITSECTION;
+
+		hr = MFCreateSourceReaderFromMediaSource(mSource, attributes, &mReader);
+
+		DO_OR_DIE_CRITSECTION;
 	}
-	hr = device->ActivateObject(__uuidof(IMFMediaSource), (void**)&mSource);
 
-	DO_OR_DIE_CRITSECTION;
-
-	hr = MFCreateAttributes(&attributes, 3);
-	ScopedRelease<IMFAttributes> attributes_s(attributes);
-
-	DO_OR_DIE_CRITSECTION;
-
-	hr = attributes->SetUINT32(MF_READWRITE_DISABLE_CONVERTERS, TRUE);
-
-	DO_OR_DIE_CRITSECTION;
-
-	hr = attributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, this);
-
-	DO_OR_DIE_CRITSECTION;
-
-	hr = MFCreateSourceReaderFromMediaSource(mSource, attributes, &mReader);
-
-	DO_OR_DIE_CRITSECTION;
-
-	LeaveCriticalSection(&mCritsec);
 	if (!changeResolution(gParams.Format, gParams.mWidth, gParams.mHeight))
 		return -1;
 
@@ -717,7 +690,7 @@ bool CaptureClass::changeResolution(SimpleFormat format, size_t width, size_t he
 	HRESULT hr;
 	IMFMediaType* type = nullptr;
 
-	EnterCriticalSection(&mCritsec);
+	std::unique_lock<std::mutex> lck(mutex);
 
 	gParams.mWidth = width;
 	gParams.mHeight = height;
@@ -730,9 +703,9 @@ bool CaptureClass::changeResolution(SimpleFormat format, size_t width, size_t he
 
 	DO_OR_DIE_CRITSECTION;
 
-		hr = setVideoType(format, type);
+	hr = setVideoType(format, type);
 
-		DO_OR_DIE_CRITSECTION;
+	DO_OR_DIE_CRITSECTION;
 
 	hr = mReader->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, nullptr, type);
 
@@ -743,13 +716,12 @@ bool CaptureClass::changeResolution(SimpleFormat format, size_t width, size_t he
 
 	DO_OR_DIE_CRITSECTION;
 
-	LeaveCriticalSection(&mCritsec);
 	return true;
 }
 
 void CaptureClass::deinitCapture()
 {
-	EnterCriticalSection(&mCritsec);
+	std::unique_lock<std::mutex> lck(mutex);
 
 	if (mReader)
 	{
@@ -763,10 +735,6 @@ void CaptureClass::deinitCapture()
 		mSource->Release();
 		mSource = nullptr;
 	}
-	delete[] mCaptureBuffer;
-	mCaptureBuffer = nullptr;
-
-	LeaveCriticalSection(&mCritsec);
 }
 
 std::wstring CaptureClass::name() const
@@ -786,10 +754,10 @@ std::string CaptureClass::cname() const
 
 size_t CaptureClass::getCaptureImage(char **buffer, size_t *stride, size_t *height)
 {
-	*buffer = mCaptureBuffer;
+	*buffer = mCaptureBuffer.data();
 	*stride =  mCaptureBufferScanline;
 	*height = mCaptureBufferHeight;
-	return  mCaptureBufferScanline * mCaptureBufferHeight;
+	return  mCaptureBuffer.size();
 }
 
 std::wstring CaptureClass::updatename(IMFActivate* device)

@@ -8,6 +8,7 @@
 #include <shlwapi.h>
 #include <vector>
 #include <string>
+#include <mutex>
 
 #include <escapi.h>
 #include "conversion.h"
@@ -83,7 +84,7 @@ class CaptureClass : public IMFSourceReaderCallback
 
   private:
 	long mRefCount; // Reference count.
-	CRITICAL_SECTION mCritsec;
+	std::mutex mutex;
 
 	IMFSourceReader* mReader;
 	IMFMediaSource* mSource;
@@ -91,7 +92,7 @@ class CaptureClass : public IMFSourceReaderCallback
 	LONG mDefaultStride;
 	IMAGE_TRANSFORM_FN mConvertFn; // Function to convert the video to RGB32
 
-	char* mCaptureBuffer;
+	std::vector<char> mCaptureBuffer;
 	size_t mCaptureBufferScanline;
 	size_t mCaptureBufferWidth;
 	size_t mCaptureBufferHeight;

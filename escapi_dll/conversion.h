@@ -1,7 +1,9 @@
 #pragma once
 
-typedef void (*IMAGE_TRANSFORM_FN)(BYTE* aDest, LONG aDestStride, const BYTE* aSrc, LONG aSrcStride,
-                                   DWORD aWidthInPixels, DWORD aHeightInPixels);
+#include <vector>
+
+typedef void (*IMAGE_TRANSFORM_FN)(std::vector<char>& aDest, size_t& aDestStride, const BYTE* aSrc, size_t aSrcStride,
+								   size_t aWidthInPixels, size_t aHeightInPixels);
 
 struct ConversionFunction
 {
@@ -9,16 +11,5 @@ struct ConversionFunction
 	IMAGE_TRANSFORM_FN mXForm;
 };
 
-void TransformImage_RGB24(BYTE* aDest, LONG aDestStride, const BYTE* aSrc, LONG aSrcStride,
-                          DWORD aWidthInPixels, DWORD aHeightInPixels);
-
-void TransformImage_RGB32(BYTE* aDest, LONG aDestStride, const BYTE* aSrc, LONG aSrcStride,
-                          DWORD aWidthInPixels, DWORD aHeightInPixels);
-
-void TransformImage_YUY2(BYTE* aDest, LONG aDestStride, const BYTE* aSrc, LONG aSrcStride,
-                         DWORD aWidthInPixels, DWORD aHeightInPixels);
-
-void TransformImage_NV12(BYTE* aDst, LONG aDestStride, const BYTE* aSrc, LONG aSrcStride,
-                         DWORD aWidthInPixels, DWORD aHeightInPixels);
-extern ConversionFunction gFormatConversions[];
-extern const DWORD gConversionFormats;
+extern IMAGE_TRANSFORM_FN gFormatRawConverter;
+extern std::vector<ConversionFunction> gFormatConversions;
