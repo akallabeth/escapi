@@ -88,32 +88,36 @@ HRESULT EscAPI::InitDevice(size_t aDevice, const struct SimpleCapParams* aParams
 size_t EscAPI::GetSupportedFormatsAndResolutions(size_t device, SimpleFormat* formats, size_t* widths, size_t* heights, size_t count)
 {
 	CaptureClass* dev;
+	std::vector<SimpleFormat> vformats;
+	std::vector<size_t> vwidths, vheights;
+
 	if (!getDevice(device, &dev))
 		return 0;
 
 	std::vector<CaptureClass::resolution> resolutions = dev->getSupportedResolutions();
-	size_t used = std::min<size_t>(count, resolutions.size() * 4);
-	if (!formats || !widths || !heights || (count == 0))
-		return resolutions.size() * 4;
-
-	for (size_t x = 0; (x < used) && !resolutions.empty();)
-	{
-		CaptureClass::resolution res = resolutions.back();
-		resolutions.pop_back();
-		for (size_t y=H264; (y<=RGB32)&&(x < used); y++) {
-			if (y == I420)
-				continue;
-			if (y == H264)
-				continue;
-			if (y == MJPG)
+	for (const auto& res : resolutions)
+	{		
+		for (size_t y=H264; y<=RGB32; y++) {
+			if (y != YUY2)
 				continue;
 
-			formats[x] = static_cast<SimpleFormat>(y);
-			widths[x] = res.w;
-			heights[x] = res.h;
-			x++;
+			vformats.push_back(static_cast<SimpleFormat>(y));
+			vwidths.push_back(res.w);
+			vheights.push_back(res.h);
 		}
 	}
+
+	if (!formats || !widths || !heights || (count == 0))
+		return vformats.size();
+
+	auto used = std::min<size_t>(vformats.size(), count);
+	for (size_t x=0; x<used; x++)
+	{
+		formats[x] = vformats[x];
+		widths[x] = vwidths[x];
+		heights[x] = vheights[x];
+	}
+
 	return used;
 }
 
